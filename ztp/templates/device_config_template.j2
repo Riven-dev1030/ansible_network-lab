@@ -1,0 +1,98 @@
+!
+! ZTP 配置模板 - {{ hostname }}
+! 自動生成時間: {{ timestamp }}
+! 設備角色: {{ role }}
+! 管理 IP: {{ mgmt_ip }}
+!
+hostname {{ hostname }}
+!
+! 關閉 DNS 查詢
+no ip domain-lookup
+ip domain-name lab.local
+!
+! ============================================
+! 管理介面配置 (OOB)
+! ============================================
+interface {{ mgmt_interface }}
+ description OOB Management Interface
+ {% if use_dhcp %}
+ ip address dhcp
+ ip dhcp client hostname {{ hostname }}
+ {% else %}
+ ip address {{ mgmt_ip }} 255.255.255.0
+ {% endif %}
+ no shutdown
+!
+! ============================================
+! 安全配置
+! ============================================
+! 本地使用者
+username admin privilege 15 secret {{ admin_password }}
+{% if enable_password %}
+enable secret {{ enable_password }}
+{% endif %}
+!
+! SSH 配置
+crypto key generate rsa modulus 2048
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+!
+! ============================================
+! Line 配置
+! ============================================
+line con 0
+ exec-timeout 0 0
+ logging synchronous
+line vty 0 4
+ login local
+ transport input ssh
+ exec-timeout 15 0
+!
+! ============================================
+! Logging 配置
+! ============================================
+{% if syslog_server %}
+logging host {{ syslog_server }}
+logging trap informational
+logging source-interface {{ mgmt_interface }}
+{% endif %}
+!
+service timestamps debug datetime msec
+service timestamps log datetime msec
+!
+! ============================================
+! SNMP 配置 (可選)
+! ============================================
+{% if snmp_community %}
+snmp-server community {{ snmp_community }} RO
+snmp-server location {{ location }}
+snmp-server contact {{ contact }}
+{% endif %}
+!
+! ============================================
+! NTP 配置 (可選)
+! ============================================
+{% if ntp_servers %}
+{% for ntp in ntp_servers %}
+ntp server {{ ntp }}
+{% endfor %}
+{% endif %}
+!
+! ============================================
+! Banner
+! ============================================
+banner motd ^
+========================================
+ {{ hostname }} - {{ role }}
+ Automated by ZTP + Ansible
+ Unauthorized access prohibited
+========================================
+^
+!
+! ============================================
+! 儲存配置
+! ============================================
+end
+write memory
+!

@@ -1,0 +1,112 @@
+---
+# ZTP 設備清單 - MAC 地址與管理 IP 映射
+# 此文件用於 Provisioning Server 自動註冊設備
+
+devices:
+  # ============================================
+  # HQ Routers
+  # ============================================
+  R1:
+    mac_address: "50:00:00:01:00:00"
+    mgmt_ip: "192.168.1.11"
+    device_type: "cisco_ios"
+    role: "edge_hsrp_primary"
+    location: "HQ"
+    group: "hq_routers"
+    ztp_config: "configs/R1-config.py"
+
+  R2:
+    mac_address: "50:00:00:02:00:00"
+    mgmt_ip: "192.168.1.12"
+    device_type: "cisco_ios"
+    role: "edge_hsrp_standby"
+    location: "HQ"
+    group: "hq_routers"
+    ztp_config: "configs/R2-config.py"
+
+  R3:
+    mac_address: "50:00:00:03:00:00"
+    mgmt_ip: "192.168.1.13"
+    device_type: "cisco_ios"
+    role: "dmz_abr"
+    location: "HQ"
+    group: "hq_routers"
+    ztp_config: "configs/R3-config.py"
+
+  # ============================================
+  # HQ Switches
+  # ============================================
+  SW1:
+    mac_address: "50:00:00:11:00:00"
+    mgmt_ip: "192.168.1.21"
+    device_type: "cisco_ios"
+    role: "access_switch"
+    location: "HQ"
+    group: "hq_switches"
+    ztp_config: "configs/SW1-config.py"
+
+  # ============================================
+  # Branch Devices
+  # ============================================
+  BR1:
+    mac_address: "50:00:00:04:00:00"
+    mgmt_ip: "192.168.1.14"
+    device_type: "cisco_ios"
+    role: "branch_router"
+    location: "Branch"
+    group: "branch_routers"
+    ztp_config: "configs/BR1-config.py"
+
+  BR-SW:
+    mac_address: "50:00:00:12:00:00"
+    mgmt_ip: "192.168.1.22"
+    device_type: "cisco_ios"
+    role: "branch_switch"
+    location: "Branch"
+    group: "branch_switches"
+    ztp_config: "configs/BR-SW-config.py"
+
+  # ============================================
+  # ISP Routers
+  # ============================================
+  ISP1:
+    mac_address: "50:00:00:31:00:00"
+    mgmt_ip: "192.168.1.31"
+    device_type: "cisco_ios"
+    role: "isp"
+    location: "External"
+    group: "isp"
+    as_number: 65001
+    ztp_config: "configs/ISP1-config.py"
+
+  ISP2:
+    mac_address: "50:00:00:32:00:00"
+    mgmt_ip: "192.168.1.32"
+    device_type: "cisco_ios"
+    role: "isp"
+    location: "External"
+    group: "isp"
+    as_number: 65002
+    ztp_config: "configs/ISP2-config.py"
+
+# ============================================
+# ZTP Server 設定
+# ============================================
+ztp_server:
+  ip: "192.168.1.100"
+  tftp_root: "/var/lib/tftpboot"
+  http_port: 8080
+  api_port: 5000
+  dhcp_config_path: "/etc/dhcp/dhcpd.conf"
+
+# ============================================
+# OOB 管理網段
+# ============================================
+management_network:
+  subnet: "192.168.1.0/24"
+  gateway: "192.168.1.1"
+  dynamic_range_start: "192.168.1.200"
+  dynamic_range_end: "192.168.1.250"
+  dns_servers:
+    - "8.8.8.8"
+    - "8.8.4.4"

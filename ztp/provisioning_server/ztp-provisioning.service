@@ -1,0 +1,22 @@
+[Unit]
+Description=ZTP Provisioning Server API
+After=network.target isc-dhcp-server.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/ztp/provisioning_server
+ExecStart=/opt/ztp/provisioning_server/venv/bin/python3 /opt/ztp/provisioning_server/app.py
+Restart=always
+RestartSec=10
+
+# 環境變數
+Environment="PYTHONUNBUFFERED=1"
+
+# 日誌
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ztp-provisioning
+
+[Install]
+WantedBy=multi-user.target

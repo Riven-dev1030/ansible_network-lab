@@ -1,0 +1,179 @@
+---
+# ZTP Server 驗證 Playbook
+# 驗證所有 ZTP 服務是否正常運行
+
+- name: 驗證 ZTP Server 部署
+  hosts: localhost
+  gather_facts: no
+  vars:
+    ztp_server_ip: "192.168.1.100"
+    api_port: 5000
+    http_port: 8080
+
+  tasks:
+    - name: 顯示驗證開始
+      debug:
+        msg:
+          - "=========================================="
+          - "ZTP Server 驗證檢查"
+          - "=========================================="
+
+    # ============================================
+    # 1. 檢查服務狀態
+    # ============================================
+    - name: 檢查 DHCP Server 狀態
+      systemd:
+        name: isc-dhcp-server
+      register: dhcp_status
+
+    - name: 檢查 TFTP Server 狀態
+      systemd:
+        name: tftpd-hpa
+      register: tftp_status
+
+    - name: 檢查 Nginx 狀態
+      systemd:
+        name: nginx
+      register: nginx_status
+
+    - name: 檢查 Provisioning Server 狀態
+      systemd:
+        name: ztp-provisioning
+      register: api_status
+      ignore_errors: yes
+
+    # ============================================
+    # 2. 檢查端口監聽
+    # ============================================
+    - name: 檢查 DHCP Port 67
+      wait_for:
+        port: 67
+        timeout: 5
+      register: dhcp_port
+
+    - name: 檢查 TFTP Port 69
+      wait_for:
+        port: 69
+        timeout: 5
+      register: tftp_port
+
+    - name: 檢查 HTTP Port
+      wait_for:
+        host: "{{ ztp_server_ip }}"
+        port: "{{ http_port }}"
+        timeout: 5
+      register: http_port_check
+
+    - name: 檢查 API Port
+      wait_for:
+        host: "{{ ztp_server_ip }}"
+        port: "{{ api_port }}"
+        timeout: 5
+      register: api_port_check
+
+    # ============================================
+    # 3. 測試 API 端點
+    # ============================================
+    - name: 測試 API Health Endpoint
+      uri:
+        url: "http://{{ ztp_server_ip }}:{{ api_port }}/api/health"
+        method: GET
+        return_content: yes
+      register: health_check
+      ignore_errors: yes
+
+    - name: 測試 API Devices Endpoint
+      uri:
+        url: "http://{{ ztp_server_ip }}:{{ api_port }}/api/devices"
+        method: GET
+        return_content: yes
+      register: devices_check
+      ignore_errors: yes
+
+    # ============================================
+    # 4. 檢查配置文件
+    # ============================================
+    - name: 檢查 DHCP 配置文件
+      stat:
+        path: /etc/dhcp/dhcpd.conf
+      register: dhcp_conf
+
+    - name: 檢查設備清單文件
+      stat:
+        path: /opt/ztp/dhcp/device_inventory.yml
+      register: inventory_file
+
+    - name: 檢查 ZTP Bootstrap 腳本
+      stat:
+        path: /var/lib/tftpboot/ztp_bootstrap.py
+      register: bootstrap_script
+
+    # ============================================
+    # 5. 顯示驗證結果
+    # ============================================
+    - name: 顯示服務狀態
+      debug:
+        msg:
+          - "=========================================="
+          - "服務狀態檢查"
+          - "=========================================="
+          - "DHCP Server:        {{ 'OK' if dhcp_status.status.ActiveState == 'active' else 'FAILED' }}"
+          - "TFTP Server:        {{ 'OK' if tftp_status.status.ActiveState == 'active' else 'FAILED' }}"
+          - "Nginx:              {{ 'OK' if nginx_status.status.ActiveState == 'active' else 'FAILED' }}"
+          - "Provisioning API:   {{ 'OK' if api_status.status.ActiveState == 'active' else 'FAILED' }}"
+
+    - name: 顯示端口檢查
+      debug:
+        msg:
+          - "=========================================="
+          - "端口監聽檢查"
+          - "=========================================="
+          - "Port 67 (DHCP):     {{ 'OK' if dhcp_port is success else 'FAILED' }}"
+          - "Port 69 (TFTP):     {{ 'OK' if tftp_port is success else 'FAILED' }}"
+          - "Port {{ http_port }} (HTTP):     {{ 'OK' if http_port_check is success else 'FAILED' }}"
+          - "Port {{ api_port }} (API):      {{ 'OK' if api_port_check is success else 'FAILED' }}"
+
+    - name: 顯示 API 測試結果
+      debug:
+        msg:
+          - "=========================================="
+          - "API 端點測試"
+          - "=========================================="
+          - "Health Check:       {{ 'OK' if health_check is success else 'FAILED' }}"
+          - "Devices Endpoint:   {{ 'OK' if devices_check is success else 'FAILED' }}"
+      when: health_check is defined
+
+    - name: 顯示 API Health 響應
+      debug:
+        var: health_check.json
+      when: health_check is success
+
+    - name: 顯示文件檢查
+      debug:
+        msg:
+          - "=========================================="
+          - "配置文件檢查"
+          - "=========================================="
+          - "DHCP Config:        {{ 'OK' if dhcp_conf.stat.exists else 'MISSING' }}"
+          - "Device Inventory:   {{ 'OK' if inventory_file.stat.exists else 'MISSING' }}"
+          - "ZTP Bootstrap:      {{ 'OK' if bootstrap_script.stat.exists else 'MISSING' }}"
+
+    - name: 顯示完整驗證結果
+      debug:
+        msg:
+          - "=========================================="
+          - "驗證總結"
+          - "=========================================="
+          - "所有服務: {{ 'PASSED' if (dhcp_status.status.ActiveState == 'active' and tftp_status.status.ActiveState == 'active' and nginx_status.status.ActiveState == 'active') else 'FAILED' }}"
+          - ""
+          - "ZTP Server 已就緒，可以開始設備部署！"
+          - ""
+          - "使用方法:"
+          - "1. 將新設備連接到管理網路 (192.168.1.0/24)"
+          - "2. 設備將自動通過 DHCP 獲取 IP 並下載 ZTP 腳本"
+          - "3. ZTP 腳本將自動配置設備並註冊到 Provisioning Server"
+          - "4. 設備將獲得固定管理 IP"
+          - ""
+          - "監控註冊:"
+          - "  watch -n 2 'curl -s http://{{ ztp_server_ip }}:{{ api_port }}/api/registrations | jq'"
+          - "=========================================="

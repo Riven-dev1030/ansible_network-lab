@@ -1,0 +1,254 @@
+---
+# ZTP Server 部署 Playbook
+# 在 ZTP Server (192.168.1.100) 上部署所有必要服務
+
+- name: 部署 ZTP Server - DHCP, TFTP, HTTP, API
+  hosts: localhost
+  become: yes
+  gather_facts: yes
+  vars:
+    ztp_server_ip: "192.168.1.100"
+    ztp_base_dir: "/opt/ztp"
+    tftp_root: "/var/lib/tftpboot"
+    http_port: 8080
+    api_port: 5000
+
+  tasks:
+    - name: 顯示部署資訊
+      debug:
+        msg:
+          - "=========================================="
+          - "ZTP Server 部署"
+          - "=========================================="
+          - "Server IP: {{ ztp_server_ip }}"
+          - "TFTP Root: {{ tftp_root }}"
+          - "HTTP Port: {{ http_port }}"
+          - "API Port: {{ api_port }}"
+          - "=========================================="
+
+    # ============================================
+    # 1. 系統準備
+    # ============================================
+    - name: 更新 APT 套件索引
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: 安裝必要套件
+      apt:
+        name:
+          - isc-dhcp-server
+          - tftpd-hpa
+          - nginx
+          - python3
+          - python3-pip
+          - python3-venv
+          - git
+        state: present
+
+    # ============================================
+    # 2. 創建目錄結構
+    # ============================================
+    - name: 創建 ZTP 目錄結構
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ ztp_base_dir }}"
+        - "{{ ztp_base_dir }}/dhcp"
+        - "{{ ztp_base_dir }}/scripts"
+        - "{{ ztp_base_dir }}/templates"
+        - "{{ ztp_base_dir }}/provisioning_server"
+        - "{{ tftp_root }}"
+        - "{{ tftp_root }}/configs"
+        - /var/log/ztp
+
+    # ============================================
+    # 3. 部署 DHCP Server
+    # ============================================
+    - name: 複製 DHCP 配置文件
+      copy:
+        src: "{{ playbook_dir }}/../dhcp/dhcpd.conf"
+        dest: /etc/dhcp/dhcpd.conf
+        backup: yes
+      notify: restart dhcp
+
+    - name: 複製設備清單
+      copy:
+        src: "{{ playbook_dir }}/../dhcp/device_inventory.yml"
+        dest: "{{ ztp_base_dir }}/dhcp/device_inventory.yml"
+
+    - name: 配置 DHCP Server 監聽介面
+      lineinfile:
+        path: /etc/default/isc-dhcp-server
+        regexp: '^INTERFACESv4='
+        line: 'INTERFACESv4="eth0"'
+      notify: restart dhcp
+
+    # ============================================
+    # 4. 部署 TFTP Server
+    # ============================================
+    - name: 配置 TFTP Server
+      lineinfile:
+        path: /etc/default/tftpd-hpa
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^TFTP_USERNAME=', line: 'TFTP_USERNAME="tftp"' }
+        - { regexp: '^TFTP_DIRECTORY=', line: 'TFTP_DIRECTORY="{{ tftp_root }}"' }
+        - { regexp: '^TFTP_ADDRESS=', line: 'TFTP_ADDRESS="0.0.0.0:69"' }
+        - { regexp: '^TFTP_OPTIONS=', line: 'TFTP_OPTIONS="--secure --create"' }
+      notify: restart tftp
+
+    - name: 複製 ZTP Bootstrap 腳本到 TFTP
+      copy:
+        src: "{{ playbook_dir }}/../scripts/ztp_bootstrap.py"
+        dest: "{{ tftp_root }}/ztp_bootstrap.py"
+        mode: '0644'
+
+    # ============================================
+    # 5. 部署 HTTP Server (Nginx)
+    # ============================================
+    - name: 配置 Nginx 提供 ZTP 文件
+      copy:
+        content: |
+          server {
+              listen {{ http_port }};
+              server_name _;
+              root {{ tftp_root }};
+              autoindex on;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+
+              location /ztp {
+                  alias {{ tftp_root }};
+                  autoindex on;
+              }
+          }
+        dest: /etc/nginx/sites-available/ztp
+      notify: restart nginx
+
+    - name: 啟用 Nginx ZTP 站點
+      file:
+        src: /etc/nginx/sites-available/ztp
+        dest: /etc/nginx/sites-enabled/ztp
+        state: link
+      notify: restart nginx
+
+    # ============================================
+    # 6. 部署 Provisioning API Server
+    # ============================================
+    - name: 複製 Provisioning Server 文件
+      copy:
+        src: "{{ playbook_dir }}/../provisioning_server/"
+        dest: "{{ ztp_base_dir }}/provisioning_server/"
+        mode: preserve
+
+    - name: 創建 Python 虛擬環境
+      command: python3 -m venv {{ ztp_base_dir }}/provisioning_server/venv
+      args:
+        creates: "{{ ztp_base_dir }}/provisioning_server/venv"
+
+    - name: 安裝 Python 依賴
+      pip:
+        requirements: "{{ ztp_base_dir }}/provisioning_server/requirements.txt"
+        virtualenv: "{{ ztp_base_dir }}/provisioning_server/venv"
+
+    - name: 部署 Provisioning Server systemd service
+      copy:
+        src: "{{ playbook_dir }}/../provisioning_server/ztp-provisioning.service"
+        dest: /etc/systemd/system/ztp-provisioning.service
+      notify: restart provisioning
+
+    - name: 重新載入 systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: 啟用並啟動 Provisioning Server
+      systemd:
+        name: ztp-provisioning
+        state: started
+        enabled: yes
+
+    # ============================================
+    # 7. 防火牆配置 (如果使用 UFW)
+    # ============================================
+    - name: 檢查 UFW 是否安裝
+      command: which ufw
+      register: ufw_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: 開放必要端口
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+      loop:
+        - "67"    # DHCP
+        - "68"    # DHCP
+        - "69"    # TFTP
+        - "{{ http_port }}"  # HTTP
+        - "{{ api_port }}"   # API
+      when: ufw_check.rc == 0
+
+    # ============================================
+    # 8. 驗證部署
+    # ============================================
+    - name: 等待服務啟動
+      wait_for:
+        port: "{{ item }}"
+        delay: 2
+        timeout: 30
+      loop:
+        - 67
+        - 69
+        - "{{ http_port }}"
+        - "{{ api_port }}"
+
+    - name: 顯示部署完成資訊
+      debug:
+        msg:
+          - "=========================================="
+          - "ZTP Server 部署完成！"
+          - "=========================================="
+          - "DHCP Server: 運行中 (Port 67)"
+          - "TFTP Server: 運行中 (Port 69)"
+          - "HTTP Server: http://{{ ztp_server_ip }}:{{ http_port }}"
+          - "API Server:  http://{{ ztp_server_ip }}:{{ api_port }}"
+          - ""
+          - "測試端點:"
+          - "  curl http://{{ ztp_server_ip }}:{{ api_port }}/api/health"
+          - "  curl http://{{ ztp_server_ip }}:{{ api_port }}/api/devices"
+          - ""
+          - "查看日誌:"
+          - "  DHCP: journalctl -u isc-dhcp-server -f"
+          - "  API:  journalctl -u ztp-provisioning -f"
+          - "  註冊: tail -f /var/log/ztp_registrations.json"
+          - "=========================================="
+
+  # ============================================
+  # Handlers
+  # ============================================
+  handlers:
+    - name: restart dhcp
+      systemd:
+        name: isc-dhcp-server
+        state: restarted
+
+    - name: restart tftp
+      systemd:
+        name: tftpd-hpa
+        state: restarted
+
+    - name: restart nginx
+      systemd:
+        name: nginx
+        state: restarted
+
+    - name: restart provisioning
+      systemd:
+        name: ztp-provisioning
+        state: restarted
