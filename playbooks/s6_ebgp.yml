@@ -1,0 +1,206 @@
+---
+# S6 | eBGP 對上游
+# 目標: BGP 鄰居 Established，對外聚合，內部有 0/0
+
+- name: 配置 ISP 路由器
+  hosts: isp
+  gather_facts: no
+  tasks:
+    - name: 配置 ISP1
+      cisco.ios.ios_config:
+        lines:
+          - hostname {{ inventory_hostname }}
+          - no ip domain-lookup
+          - ip routing
+      when: inventory_hostname == 'ISP1'
+
+    - name: 配置 ISP1 介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0
+          - description "Link to R1"
+          - ip address 203.0.113.1 255.255.255.252
+          - no shutdown
+      when: inventory_hostname == 'ISP1'
+
+    - name: 配置 ISP2
+      cisco.ios.ios_config:
+        lines:
+          - hostname {{ inventory_hostname }}
+          - no ip domain-lookup
+          - ip routing
+      when: inventory_hostname == 'ISP2'
+
+    - name: 配置 ISP2 介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0
+          - description "Link to R2"
+          - ip address 198.51.100.1 255.255.255.252
+          - no shutdown
+      when: inventory_hostname == 'ISP2'
+
+    - name: 配置 ISP1 BGP
+      cisco.ios.ios_config:
+        lines:
+          - router bgp 65001
+          - bgp router-id 101.101.101.101
+          - neighbor 203.0.113.2 remote-as 65010
+          - network 0.0.0.0
+        save_when: modified
+      when: inventory_hostname == 'ISP1'
+
+    - name: 配置 ISP2 BGP
+      cisco.ios.ios_config:
+        lines:
+          - router bgp 65002
+          - bgp router-id 102.102.102.102
+          - neighbor 198.51.100.2 remote-as 65010
+          - network 0.0.0.0
+        save_when: modified
+      when: inventory_hostname == 'ISP2'
+
+    - name: 配置 ISP 預設路由 (模擬 Internet)
+      cisco.ios.ios_config:
+        lines:
+          - ip route 0.0.0.0 0.0.0.0 Null0 254
+
+- name: 配置 R1 到 ISP1 的連接與 eBGP
+  hosts: R1
+  gather_facts: no
+  tasks:
+    - name: 配置 ISP1 連接介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/1
+          - description "Link to ISP1"
+          - ip address 203.0.113.2 255.255.255.252
+          - no shutdown
+
+    - name: 配置 BGP
+      cisco.ios.ios_config:
+        lines:
+          - router bgp 65010
+          - bgp router-id 1.1.1.1
+          - neighbor 203.0.113.1 remote-as 65001
+          - address-family ipv4
+          - network 10.10.0.0 mask 255.255.0.0
+          - network 10.110.0.0 mask 255.255.0.0
+          - aggregate-address 10.10.0.0 255.255.0.0 summary-only
+          - aggregate-address 10.110.0.0 255.255.0.0 summary-only
+          - exit-address-family
+        save_when: modified
+
+    - name: 配置靜態路由指向 Null0 (用於 BGP network 宣告)
+      cisco.ios.ios_config:
+        lines:
+          - ip route 10.10.0.0 255.255.0.0 Null0 254
+          - ip route 10.110.0.0 255.255.0.0 Null0 254
+
+    - name: 配置預設路由指向 ISP1
+      cisco.ios.ios_config:
+        lines:
+          - ip route 0.0.0.0 0.0.0.0 203.0.113.1
+
+    - name: 將預設路由注入 OSPF
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - default-information originate always
+        save_when: modified
+
+- name: 配置 R2 到 ISP2 的連接與 eBGP
+  hosts: R2
+  gather_facts: no
+  tasks:
+    - name: 配置 ISP2 連接介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/1
+          - description "Link to ISP2"
+          - ip address 198.51.100.2 255.255.255.252
+          - no shutdown
+
+    - name: 配置 BGP
+      cisco.ios.ios_config:
+        lines:
+          - router bgp 65010
+          - bgp router-id 2.2.2.2
+          - neighbor 198.51.100.1 remote-as 65002
+          - address-family ipv4
+          - network 10.10.0.0 mask 255.255.0.0
+          - network 10.110.0.0 mask 255.255.0.0
+          - aggregate-address 10.10.0.0 255.255.0.0 summary-only
+          - aggregate-address 10.110.0.0 255.255.0.0 summary-only
+          - exit-address-family
+        save_when: modified
+
+    - name: 配置靜態路由指向 Null0
+      cisco.ios.ios_config:
+        lines:
+          - ip route 10.10.0.0 255.255.0.0 Null0 254
+          - ip route 10.110.0.0 255.255.0.0 Null0 254
+
+    - name: 配置預設路由指向 ISP2
+      cisco.ios.ios_config:
+        lines:
+          - ip route 0.0.0.0 0.0.0.0 198.51.100.1
+
+    - name: 將預設路由注入 OSPF
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - default-information originate always
+        save_when: modified
+
+- name: 驗證 BGP 與路由
+  hosts: R1,R2
+  gather_facts: no
+  tasks:
+    - name: 檢查 BGP 鄰居狀態
+      cisco.ios.ios_command:
+        commands:
+          - show ip bgp summary
+      register: bgp_summary
+
+    - name: 檢查對外公告的路由
+      cisco.ios.ios_command:
+        commands:
+          - show ip bgp | include 10.10.0.0|10.110.0.0
+      register: bgp_routes
+
+    - name: 檢查預設路由
+      cisco.ios.ios_command:
+        commands:
+          - show ip route | include 0.0.0.0
+      register: default_route
+
+    - name: 顯示驗證結果
+      debug:
+        msg:
+          - "=== {{ inventory_hostname }} BGP 狀態 ==="
+          - "{{ bgp_summary.stdout_lines }}"
+          - ""
+          - "=== BGP 路由 ==="
+          - "{{ bgp_routes.stdout_lines }}"
+          - ""
+          - "=== 預設路由 ==="
+          - "{{ default_route.stdout_lines }}"
+
+- name: 驗證內部預設路由
+  hosts: R3,BR1
+  gather_facts: no
+  tasks:
+    - name: 檢查是否收到預設路由
+      cisco.ios.ios_command:
+        commands:
+          - show ip route ospf | include 0.0.0.0
+      register: internal_default
+
+    - name: 顯示內部預設路由
+      debug:
+        msg:
+          - "{{ inventory_hostname }} 預設路由:"
+          - "{{ internal_default.stdout_lines }}"
+          - ""
+          - "✅ 應該看到: O*E2 0.0.0.0/0 [110/1] via 10.10.99.x"

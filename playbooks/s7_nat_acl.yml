@@ -1,0 +1,106 @@
+---
+# S7 | NAT 與 ACL (選配)
+# 目標: DMZ 防護 - 內部可訪問，外部受限
+
+- name: 情境 A: 內部測試 - DMZ ACL 配置
+  hosts: R3
+  gather_facts: no
+  tags: scenario_a
+  tasks:
+    - name: 創建 ACL - DMZ 到內部 (拒絕主動連接)
+      cisco.ios.ios_config:
+        lines:
+          - ip access-list extended DMZ-TO-INTERNAL
+          - deny ip 10.10.50.0 0.0.0.255 10.10.10.0 0.0.0.255
+          - deny ip 10.10.50.0 0.0.0.255 10.10.20.0 0.0.0.255
+          - deny ip 10.10.50.0 0.0.0.255 10.10.60.0 0.0.0.255
+          - permit ip any any
+
+    - name: 應用 ACL 到 DMZ 介面 (入方向)
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.50
+          - ip access-group DMZ-TO-INTERNAL in
+
+    - name: 創建 ACL - 內部到 DMZ (僅允許 HTTP/HTTPS)
+      cisco.ios.ios_config:
+        lines:
+          - ip access-list extended INTERNAL-TO-DMZ
+          - permit tcp 10.10.10.0 0.0.0.255 host 10.10.50.10 eq 80
+          - permit tcp 10.10.10.0 0.0.0.255 host 10.10.50.10 eq 443
+          - permit tcp 10.10.20.0 0.0.0.255 host 10.10.50.10 eq 80
+          - permit tcp 10.10.20.0 0.0.0.255 host 10.10.50.10 eq 443
+          - permit icmp any any echo-reply
+          - deny ip any host 10.10.50.10 log
+          - permit ip any any
+
+    - name: 應用內部 ACL
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.10
+          - ip access-group INTERNAL-TO-DMZ in
+        save_when: modified
+
+    - name: 顯示說明
+      debug:
+        msg:
+          - "✅ 情境 A: 內部測試 ACL 已配置"
+          - ""
+          - "測試步驟:"
+          - "1. HQ 內部 -> DMZ: ping 10.10.50.10 (應該通)"
+          - "2. DMZ -> HQ 內部: ping 10.10.10.x (應該被拒)"
+          - "3. 檢查 ACL hit 計數: show access-lists"
+
+- name: 情境 B: 外部訪問 DMZ - NAT 配置 (進階)
+  hosts: R1
+  gather_facts: no
+  tags: scenario_b
+  tasks:
+    - name: 配置 NAT 靜態映射 (HTTP)
+      cisco.ios.ios_config:
+        lines:
+          - ip nat inside source static tcp 10.10.50.10 80 203.0.113.10 80
+          - ip nat inside source static tcp 10.10.50.10 443 203.0.113.10 443
+
+    - name: 配置 NAT inside 介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.50
+          - ip nat inside
+
+    - name: 配置 NAT outside 介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/1
+          - ip nat outside
+
+    - name: 創建外部訪問 ACL (僅允許 80/443)
+      cisco.ios.ios_config:
+        lines:
+          - ip access-list extended OUTSIDE-TO-DMZ
+          - permit tcp any host 203.0.113.10 eq 80
+          - permit tcp any host 203.0.113.10 eq 443
+          - deny ip any host 203.0.113.10 log
+          - permit ip any any
+
+    - name: 應用 ACL 到外部介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/1
+          - ip access-group OUTSIDE-TO-DMZ in
+        save_when: modified
+
+    - name: 顯示說明
+      debug:
+        msg:
+          - "✅ 情境 B: 外部訪問 NAT 已配置"
+          - ""
+          - "⚠️  注意: IOL 的 NAT 功能可能不穩定"
+          - ""
+          - "測試步驟:"
+          - "1. ISP1: telnet 203.0.113.10 80 (應該通)"
+          - "2. ISP1: telnet 203.0.113.10 443 (應該通)"
+          - "3. ISP1: telnet 203.0.113.10 23 (應該被拒)"
+          - "4. 檢查 NAT: show ip nat translations"
+          - ""
+          - "如果 NAT 有問題，請考慮使用 Linux NAT 跳板 (見附錄 A)"

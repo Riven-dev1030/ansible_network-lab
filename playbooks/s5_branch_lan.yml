@@ -1,0 +1,117 @@
+---
+# S5 | 分公司 LAN
+# 目標: Host-BR 能 ping HQ
+
+- name: 配置 BR-SW VLAN
+  hosts: BR-SW
+  gather_facts: no
+  tasks:
+    - name: 配置基本設定
+      cisco.ios.ios_config:
+        lines:
+          - hostname BR-SW
+          - no ip domain-lookup
+
+    - name: 配置 VLAN 110
+      cisco.ios.ios_vlans:
+        config:
+          - vlan_id: 110
+            name: Branch-LAN
+        state: merged
+
+    - name: 配置 Trunk 到 BR1
+      cisco.ios.ios_l2_interfaces:
+        config:
+          - name: GigabitEthernet0/1
+            mode: trunk
+            trunk:
+              allowed_vlans: "110"
+        state: merged
+
+    - name: 配置 Access Port 到 Host-BR
+      cisco.ios.ios_l2_interfaces:
+        config:
+          - name: GigabitEthernet0/2
+            mode: access
+            access:
+              vlan: 110
+        state: merged
+
+- name: 配置 BR1 VLAN 110 子介面
+  hosts: BR1
+  gather_facts: no
+  tasks:
+    - name: 配置 Trunk 介面
+      cisco.ios.ios_interfaces:
+        config:
+          - name: GigabitEthernet0/0
+            description: "Trunk to BR-SW"
+            enabled: true
+        state: merged
+
+    - name: 配置 VLAN 110 子介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.110
+          - encapsulation dot1Q 110
+          - ip address 10.110.10.254 255.255.255.0
+          - description "Branch LAN Gateway"
+
+    - name: 將分公司網段加入 OSPF Area 10
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - network 10.110.10.0 0.0.0.255 area 10
+          - passive-interface GigabitEthernet0/0.110
+        save_when: modified
+
+- name: 驗證分公司連通性
+  hosts: R3
+  gather_facts: no
+  tasks:
+    - name: 檢查路由表 - 應看到分公司網段
+      cisco.ios.ios_command:
+        commands:
+          - show ip route 10.110.10.0
+          - show ip route ospf | include 10.110
+      register: route_check
+
+    - name: 檢查 OSPF 聚合路由
+      cisco.ios.ios_command:
+        commands:
+          - show ip route 10.110.0.0
+          - show ip ospf database summary | include 10.110.0.0
+      register: summary_check
+
+    - name: 顯示路由信息
+      debug:
+        msg:
+          - "=== R3 路由表 (應包含分公司網段) ==="
+          - "{{ route_check.stdout_lines }}"
+          - ""
+          - "=== OSPF 聚合路由驗證 ==="
+          - "{{ summary_check.stdout_lines }}"
+          - ""
+          - "✅ 預期結果:"
+          - "1. R3 應看到 O 10.110.10.0/24 via Tunnel0"
+          - "2. R3 應看到 O 10.110.0.0/16 via Null0 (聚合路由)"
+          - "3. R1/R2 應只看到 O IA 10.110.0.0/16"
+
+- name: 檢查 R1/R2 是否只看到聚合路由
+  hosts: R1,R2
+  gather_facts: no
+  tasks:
+    - name: 檢查路由表 - 應只看到聚合
+      cisco.ios.ios_command:
+        commands:
+          - show ip route ospf | include 10.110
+      register: r1r2_routes
+
+    - name: 顯示 R1/R2 路由
+      debug:
+        msg:
+          - "{{ inventory_hostname }} 路由表:"
+          - "{{ r1r2_routes.stdout_lines }}"
+          - ""
+          - "✅ 應該只看到: O IA 10.110.0.0/16 [110/xxxx] via 10.10.99.3"
+          - "❌ 不應該看到: 10.110.10.0/24 (明細路由)"

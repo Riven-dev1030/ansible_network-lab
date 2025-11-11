@@ -1,0 +1,119 @@
+---
+# 全局變量 - 網路規劃
+
+# OSPF 配置
+ospf:
+  process_id: 10
+  areas:
+    area_0:
+      id: 0
+      networks:
+        - "10.10.10.0 0.0.0.255"
+        - "10.10.20.0 0.0.0.255"
+        - "10.10.60.0 0.0.0.255"
+        - "10.10.99.0 0.0.0.255"
+    area_50:
+      id: 50
+      type: stub
+      networks:
+        - "10.10.50.0 0.0.0.255"
+    area_10:
+      id: 10
+      authentication: message-digest
+      md5_key_id: 1
+      md5_password: YourPassword123
+      networks:
+        - "172.16.10.0 0.0.0.3"
+        - "10.110.10.0 0.0.0.255"
+      summary: "10.110.0.0 255.255.0.0"
+
+# BGP 配置
+bgp:
+  local_as: 65010
+  neighbors:
+    isp1:
+      remote_as: 65001
+      peer_ip: "203.0.113.1"
+    isp2:
+      remote_as: 65002
+      peer_ip: "198.51.100.1"
+  networks:
+    - "10.10.0.0 255.255.0.0"
+    - "10.110.0.0 255.255.0.0"
+
+# HQ VLAN 規劃
+hq_vlans:
+  vlan10:
+    id: 10
+    name: User
+    subnet: "10.10.10.0/24"
+    hsrp_vip: "10.10.10.254"
+    hsrp_group: 10
+  vlan20:
+    id: 20
+    name: IT
+    subnet: "10.10.20.0/24"
+    hsrp_vip: "10.10.20.254"
+    hsrp_group: 20
+  vlan60:
+    id: 60
+    name: Log
+    subnet: "10.10.60.0/24"
+    hsrp_vip: "10.10.60.254"
+    hsrp_group: 60
+  vlan50:
+    id: 50
+    name: DMZ
+    subnet: "10.10.50.0/24"
+    gateway: "10.10.50.1"
+  vlan99:
+    id: 99
+    name: Transit
+    subnet: "10.10.99.0/24"
+
+# 分公司 VLAN
+branch_vlans:
+  vlan110:
+    id: 110
+    name: Branch-LAN
+    subnet: "10.110.10.0/24"
+    gateway: "10.110.10.254"
+
+# GRE Tunnel 配置
+gre_tunnels:
+  tunnel0:
+    source: "100.64.1.1"
+    destination: "100.64.1.2"
+    tunnel_subnet: "172.16.10.0/30"
+    r3_ip: "172.16.10.1"
+    br1_ip: "172.16.10.2"
+
+# Underlay 網段
+underlay:
+  r3_br1:
+    subnet: "100.64.1.0/30"
+    r3_ip: "100.64.1.1"
+    br1_ip: "100.64.1.2"
+
+# ISP 連接
+isp_links:
+  isp1_r1:
+    subnet: "203.0.113.0/30"
+    r1_ip: "203.0.113.2"
+    isp1_ip: "203.0.113.1"
+  isp2_r2:
+    subnet: "198.51.100.0/30"
+    r2_ip: "198.51.100.2"
+    isp2_ip: "198.51.100.1"
+
+# Syslog 伺服器
+syslog_server: "10.10.60.10"
+
+# DNS 伺服器 (如有)
+dns_servers:
+  - "8.8.8.8"
+  - "8.8.4.4"
+
+# NTP 伺服器 (如有)
+ntp_servers:
+  - "time.google.com"

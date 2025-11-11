@@ -1,0 +1,76 @@
+---
+# S8 | 可觀測性與日誌
+# 目標: 基本日誌 + Syslog 配置
+
+- name: 配置 Syslog 到 LogSrv
+  hosts: cisco_devices
+  gather_facts: no
+  tasks:
+    - name: 配置 Syslog 伺服器
+      cisco.ios.ios_config:
+        lines:
+          - logging {{ syslog_server }}
+          - logging trap warnings
+          - logging source-interface Loopback0
+          - logging buffered 8192
+        save_when: modified
+      when: syslog_server is defined
+
+    - name: 配置 Loopback 0 (如果不存在)
+      cisco.ios.ios_config:
+        lines:
+          - interface Loopback0
+          - ip address {{ ansible_host }} 255.255.255.255
+          - description "Management and Syslog Source"
+      when: inventory_hostname in groups['hq_routers'] or inventory_hostname in groups['branch_routers']
+
+    - name: 啟用時間戳
+      cisco.ios.ios_config:
+        lines:
+          - service timestamps log datetime msec
+          - service timestamps debug datetime msec
+
+- name: 驗證 Syslog 配置
+  hosts: cisco_devices
+  gather_facts: no
+  tasks:
+    - name: 檢查 Syslog 配置
+      cisco.ios.ios_command:
+        commands:
+          - show logging | include 10.10.60.10
+      register: logging_config
+      ignore_errors: yes
+
+    - name: 顯示 Logging 狀態
+      debug:
+        var: logging_config.stdout_lines
+      when: logging_config is defined
+
+- name: 配置 SNMP (選配)
+  hosts: cisco_devices
+  gather_facts: no
+  tags: snmp
+  tasks:
+    - name: 配置 SNMP Community
+      cisco.ios.ios_config:
+        lines:
+          - snmp-server community public RO
+          - snmp-server location "Enterprise Network Lab"
+          - snmp-server contact "Network Admin"
+        save_when: modified
+
+- name: 儲存所有配置
+  hosts: cisco_devices
+  gather_facts: no
+  tasks:
+    - name: 執行 write memory
+      cisco.ios.ios_command:
+        commands:
+          - write memory
+      register: save_result
+
+    - name: 確認配置已儲存
+      debug:
+        msg:
+          - "✅ {{ inventory_hostname }} 配置已儲存"
+          - "{{ save_result.stdout_lines }}"

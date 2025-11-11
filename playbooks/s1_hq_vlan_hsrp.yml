@@ -1,0 +1,216 @@
+---
+# S1 | HQ L2/L3 與 HSRP 配置
+# 目標: VLAN 與 HSRP 正常，HQ 內部跨 VLAN 可通
+
+- name: 配置 SW1 VLAN
+  hosts: SW1
+  gather_facts: no
+  tasks:
+    - name: 配置 VLAN 10/20/60/99
+      cisco.ios.ios_vlans:
+        config:
+          - vlan_id: 10
+            name: User
+          - vlan_id: 20
+            name: IT
+          - vlan_id: 60
+            name: Log
+          - vlan_id: 50
+            name: DMZ
+          - vlan_id: 99
+            name: Transit
+        state: merged
+
+    - name: 配置 Trunk 介面到 R1
+      cisco.ios.ios_l2_interfaces:
+        config:
+          - name: GigabitEthernet0/1
+            mode: trunk
+            trunk:
+              allowed_vlans: "10,20,50,60,99"
+        state: merged
+
+    - name: 配置 Trunk 介面到 R2
+      cisco.ios.ios_l2_interfaces:
+        config:
+          - name: GigabitEthernet0/2
+            mode: trunk
+            trunk:
+              allowed_vlans: "10,20,50,60,99"
+        state: merged
+
+    - name: 配置 Trunk 介面到 R3
+      cisco.ios.ios_l2_interfaces:
+        config:
+          - name: GigabitEthernet0/3
+            mode: trunk
+            trunk:
+              allowed_vlans: "50,99"
+        state: merged
+
+    - name: 配置 WebSrv Access Port (VLAN 50)
+      cisco.ios.ios_l2_interfaces:
+        config:
+          - name: GigabitEthernet0/4
+            mode: access
+            access:
+              vlan: 50
+        state: merged
+
+- name: 配置 R1 子介面與 HSRP
+  hosts: R1
+  gather_facts: no
+  tasks:
+    - name: 配置基本設定
+      cisco.ios.ios_config:
+        lines:
+          - hostname R1
+          - no ip domain-lookup
+          - line con 0
+          - exec-timeout 0 0
+          - logging synchronous
+
+    - name: 配置主介面為 Trunk
+      cisco.ios.ios_interfaces:
+        config:
+          - name: GigabitEthernet0/0
+            description: "Trunk to SW1"
+            enabled: true
+        state: merged
+
+    - name: 配置 VLAN 10 子介面與 HSRP
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.10
+          - encapsulation dot1Q 10
+          - ip address 10.10.10.1 255.255.255.0
+          - standby 10 ip 10.10.10.254
+          - standby 10 priority 110
+          - standby 10 preempt
+          - standby 10 authentication {{ hsrp_auth_string }}
+
+    - name: 配置 VLAN 20 子介面與 HSRP
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.20
+          - encapsulation dot1Q 20
+          - ip address 10.10.20.1 255.255.255.0
+          - standby 20 ip 10.10.20.254
+          - standby 20 priority 110
+          - standby 20 preempt
+          - standby 20 authentication {{ hsrp_auth_string }}
+
+    - name: 配置 VLAN 60 子介面與 HSRP
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.60
+          - encapsulation dot1Q 60
+          - ip address 10.10.60.1 255.255.255.0
+          - standby 60 ip 10.10.60.254
+          - standby 60 priority 110
+          - standby 60 preempt
+          - standby 60 authentication {{ hsrp_auth_string }}
+
+    - name: 配置 VLAN 99 Transit 子介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.99
+          - encapsulation dot1Q 99
+          - ip address 10.10.99.1 255.255.255.0
+          - description "Transit VLAN for OSPF Area 0"
+
+- name: 配置 R2 子介面與 HSRP
+  hosts: R2
+  gather_facts: no
+  tasks:
+    - name: 配置基本設定
+      cisco.ios.ios_config:
+        lines:
+          - hostname R2
+          - no ip domain-lookup
+
+    - name: 配置主介面為 Trunk
+      cisco.ios.ios_interfaces:
+        config:
+          - name: GigabitEthernet0/0
+            description: "Trunk to SW1"
+            enabled: true
+        state: merged
+
+    - name: 配置 VLAN 10 子介面與 HSRP (Standby)
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.10
+          - encapsulation dot1Q 10
+          - ip address 10.10.10.2 255.255.255.0
+          - standby 10 ip 10.10.10.254
+          - standby 10 priority 100
+          - standby 10 preempt
+          - standby 10 authentication {{ hsrp_auth_string }}
+
+    - name: 配置 VLAN 20 子介面與 HSRP (Standby)
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.20
+          - encapsulation dot1Q 20
+          - ip address 10.10.20.2 255.255.255.0
+          - standby 20 ip 10.10.20.254
+          - standby 20 priority 100
+          - standby 20 preempt
+          - standby 20 authentication {{ hsrp_auth_string }}
+
+    - name: 配置 VLAN 60 子介面與 HSRP (Standby)
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.60
+          - encapsulation dot1Q 60
+          - ip address 10.10.60.2 255.255.255.0
+          - standby 60 ip 10.10.60.254
+          - standby 60 priority 100
+          - standby 60 preempt
+          - standby 60 authentication {{ hsrp_auth_string }}
+
+    - name: 配置 VLAN 99 Transit 子介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.99
+          - encapsulation dot1Q 99
+          - ip address 10.10.99.2 255.255.255.0
+          - description "Transit VLAN for OSPF Area 0"
+
+- name: 配置 R3 子介面 (Transit VLAN)
+  hosts: R3
+  gather_facts: no
+  tasks:
+    - name: 配置基本設定
+      cisco.ios.ios_config:
+        lines:
+          - hostname R3
+          - no ip domain-lookup
+
+    - name: 配置 VLAN 99 Transit 子介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.99
+          - encapsulation dot1Q 99
+          - ip address 10.10.99.3 255.255.255.0
+          - description "Transit VLAN for OSPF Area 0"
+
+    - name: 啟用 IP Routing
+      cisco.ios.ios_config:
+        lines:
+          - ip routing
+
+- name: 啟用所有路由器的 IP Routing
+  hosts: hq_routers
+  gather_facts: no
+  tasks:
+    - name: 啟用 IP Routing
+      cisco.ios.ios_config:
+        lines:
+          - ip routing
+
+    - name: 儲存配置
+      cisco.ios.ios_command:
+        commands:
+          - write memory

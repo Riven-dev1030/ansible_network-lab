@@ -1,0 +1,41 @@
+# Ansible
+*.retry
+ansible.log
+.ansible/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Vault files (加密的密碼文件)
+*vault*.yml
+!group_vars/vault.yml.example
+
+# 臨時文件
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# 備份文件
+*.bak
+*.backup
+
+# 設備配置備份
+configs/*.cfg
+backups/
+
+# 敏感資訊
+credentials.yml
+secrets.yml

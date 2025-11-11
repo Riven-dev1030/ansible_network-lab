@@ -1,0 +1,34 @@
+---
+# 主 Playbook - 完整部署企業網路實驗室
+# 按照 PDF 指南的 S0-S8 階段順序執行
+
+- name: "S0 | 準備與基線"
+  import_playbook: s0_preparation.yml
+
+- name: "S1 | HQ L2/L3 與 HSRP"
+  import_playbook: s1_hq_vlan_hsrp.yml
+
+- name: "S2 | DMZ 與 R3 接入"
+  import_playbook: s2_dmz_r3.yml
+
+- name: "S3 | OSPF 聚合預設"
+  import_playbook: s3_ospf_summary.yml
+
+- name: "S4 | GRE Underlay 與 Tunnel"
+  import_playbook: s4_gre_tunnel.yml
+
+- name: "S5 | 分公司 LAN"
+  import_playbook: s5_branch_lan.yml
+
+- name: "S6 | eBGP 對上游"
+  import_playbook: s6_ebgp.yml
+
+- name: "S7 | NAT 與 ACL (選配)"
+  import_playbook: s7_nat_acl.yml
+  tags: optional
+
+- name: "S8 | 可觀測性與日誌"
+  import_playbook: s8_observability.yml
+
+- name: "驗證部署"
+  import_playbook: verify_deployment.yml

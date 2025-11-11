@@ -1,0 +1,73 @@
+---
+# S2 | DMZ 與 R3 接入
+# 目標: R3 成為 Area50 的 ABR，建立與 R1/R2 的 Area 0 鄰居關係
+
+- name: 配置 R3 DMZ 介面與 OSPF
+  hosts: R3
+  gather_facts: no
+  tasks:
+    - name: 配置 DMZ VLAN 50 子介面
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/0.50
+          - encapsulation dot1Q 50
+          - ip address 10.10.50.1 255.255.255.0
+          - description "DMZ Network"
+
+    - name: 配置 OSPF Process 10
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - router-id 3.3.3.3
+          - area 50 stub
+          - network 10.10.99.3 0.0.0.0 area 0
+          - network 10.10.50.1 0.0.0.0 area 50
+          - passive-interface GigabitEthernet0/0.50
+
+- name: 配置 R1 OSPF Area 0
+  hosts: R1
+  gather_facts: no
+  tasks:
+    - name: 配置 OSPF Process 10
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - router-id 1.1.1.1
+          - network 10.10.10.0 0.0.0.255 area 0
+          - network 10.10.20.0 0.0.0.255 area 0
+          - network 10.10.60.0 0.0.0.255 area 0
+          - network 10.10.99.0 0.0.0.255 area 0
+          - passive-interface GigabitEthernet0/0.10
+          - passive-interface GigabitEthernet0/0.20
+          - passive-interface GigabitEthernet0/0.60
+
+- name: 配置 R2 OSPF Area 0
+  hosts: R2
+  gather_facts: no
+  tasks:
+    - name: 配置 OSPF Process 10
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - router-id 2.2.2.2
+          - network 10.10.10.0 0.0.0.255 area 0
+          - network 10.10.20.0 0.0.0.255 area 0
+          - network 10.10.60.0 0.0.0.255 area 0
+          - network 10.10.99.0 0.0.0.255 area 0
+          - passive-interface GigabitEthernet0/0.10
+          - passive-interface GigabitEthernet0/0.20
+          - passive-interface GigabitEthernet0/0.60
+
+- name: 驗證 OSPF 鄰居關係
+  hosts: hq_routers
+  gather_facts: no
+  tasks:
+    - name: 檢查 OSPF 鄰居
+      cisco.ios.ios_command:
+        commands:
+          - show ip ospf neighbor
+      register: ospf_neighbors
+
+    - name: 顯示 OSPF 鄰居狀態
+      debug:
+        var: ospf_neighbors.stdout_lines

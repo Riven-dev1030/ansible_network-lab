@@ -1,0 +1,33 @@
+---
+# S3 | OSPF 聚合預設
+# 目標: 預先配置分公司網段聚合 (S5 時生效)
+
+- name: 配置 R3 OSPF Area 10 聚合路由
+  hosts: R3
+  gather_facts: no
+  tasks:
+    - name: 配置 Area 10 Range (聚合 10.110.0.0/16)
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - area 10 range 10.110.0.0 255.255.0.0
+        save_when: modified
+
+    - name: 顯示配置
+      cisco.ios.ios_command:
+        commands:
+          - show run | section router ospf
+      register: ospf_config
+
+    - name: 輸出 OSPF 配置
+      debug:
+        var: ospf_config.stdout_lines
+
+    - name: 說明
+      debug:
+        msg:
+          - "✅ Area 10 聚合路由已配置"
+          - "⚠️  注意: 此聚合將在 S5 階段 BR1 宣告網段後生效"
+          - "驗證命令 (S5後): show ip route 10.110.0.0"
+          - "預期結果: R3 會看到 O 10.110.0.0/16 via Null0 (聚合路由)"
+          - "          R1/R2 只會看到 O IA 10.110.0.0/16 (不會看到 /24 明細)"

@@ -1,0 +1,199 @@
+---
+# 驗證部署 - 完整驗證清單 (對應 PDF 第 5 節)
+
+- name: A. HSRP 與 VLAN 間路由驗證
+  hosts: R1,R2
+  gather_facts: no
+  tasks:
+    - name: 檢查 HSRP 狀態
+      cisco.ios.ios_command:
+        commands:
+          - show standby brief
+      register: hsrp_status
+
+    - name: 顯示 HSRP 狀態
+      debug:
+        msg:
+          - "=== {{ inventory_hostname }} HSRP 狀態 ==="
+          - "{{ hsrp_status.stdout_lines }}"
+          - ""
+          - "✅ 驗證標準:"
+          - "  - R1 應為 Active (priority 110)"
+          - "  - R2 應為 Standby (priority 100)"
+          - "  - VIP 分別為 .254"
+
+- name: B. OSPF 驗證
+  hosts: hq_routers,BR1
+  gather_facts: no
+  tasks:
+    - name: 檢查 OSPF 鄰居
+      cisco.ios.ios_command:
+        commands:
+          - show ip ospf neighbor
+      register: ospf_neighbors
+
+    - name: 檢查 OSPF 介面
+      cisco.ios.ios_command:
+        commands:
+          - show ip ospf interface brief
+      register: ospf_interfaces
+
+    - name: 顯示 OSPF 狀態
+      debug:
+        msg:
+          - "=== {{ inventory_hostname }} OSPF 狀態 ==="
+          - "鄰居:"
+          - "{{ ospf_neighbors.stdout_lines }}"
+          - ""
+          - "介面:"
+          - "{{ ospf_interfaces.stdout_lines }}"
+          - ""
+          - "✅ 驗證標準:"
+          - "  - 所有鄰居應為 FULL 狀態"
+          - "  - Area 0/50/10 均正常"
+
+- name: C. GRE 隧道驗證
+  hosts: R3,BR1
+  gather_facts: no
+  tasks:
+    - name: 檢查 Tunnel 狀態
+      cisco.ios.ios_command:
+        commands:
+          - show interface Tunnel0
+      register: tunnel_status
+
+    - name: Tunnel 連通性測試
+      cisco.ios.ios_command:
+        commands:
+          - ping 172.16.10.1
+          - ping 172.16.10.2
+      register: tunnel_ping
+      ignore_errors: yes
+
+    - name: 顯示 Tunnel 狀態
+      debug:
+        msg:
+          - "=== {{ inventory_hostname }} GRE Tunnel ==="
+          - "{{ tunnel_status.stdout_lines[0] }}"
+          - ""
+          - "Ping 結果:"
+          - "{{ tunnel_ping.stdout_lines }}"
+          - ""
+          - "✅ 驗證標準:"
+          - "  - Tunnel0 應為 up/up"
+          - "  - 互 ping 應通"
+
+- name: D. eBGP 與預設路由驗證
+  hosts: R1,R2
+  gather_facts: no
+  tasks:
+    - name: 檢查 BGP 鄰居
+      cisco.ios.ios_command:
+        commands:
+          - show ip bgp summary
+      register: bgp_summary
+
+    - name: 檢查對外公告路由
+      cisco.ios.ios_command:
+        commands:
+          - show ip bgp | include 10.10.0.0|10.110.0.0
+      register: bgp_advertised
+
+    - name: 顯示 BGP 狀態
+      debug:
+        msg:
+          - "=== {{ inventory_hostname }} BGP 狀態 ==="
+          - "{{ bgp_summary.stdout_lines }}"
+          - ""
+          - "公告路由:"
+          - "{{ bgp_advertised.stdout_lines }}"
+          - ""
+          - "✅ 驗證標準:"
+          - "  - 與 ISP 為 Established"
+          - "  - 只公告聚合路由 (/16)"
+
+- name: E. 內部預設路由驗證
+  hosts: R3,BR1
+  gather_facts: no
+  tasks:
+    - name: 檢查預設路由
+      cisco.ios.ios_command:
+        commands:
+          - show ip route | include 0.0.0.0
+      register: default_route
+
+    - name: 顯示預設路由
+      debug:
+        msg:
+          - "=== {{ inventory_hostname }} 預設路由 ==="
+          - "{{ default_route.stdout_lines }}"
+          - ""
+          - "✅ 驗證標準:"
+          - "  - 應有 O*E2 0.0.0.0/0"
+
+- name: F. 端到端連通性測試
+  hosts: R3
+  gather_facts: no
+  tasks:
+    - name: HQ 到 DMZ
+      cisco.ios.ios_command:
+        commands:
+          - ping 10.10.50.10 source 10.10.10.1
+      register: hq_to_dmz
+      ignore_errors: yes
+
+    - name: HQ 到分公司
+      cisco.ios.ios_command:
+        commands:
+          - ping 10.110.10.254 source 10.10.10.1
+      register: hq_to_branch
+      ignore_errors: yes
+
+    - name: 顯示連通性結果
+      debug:
+        msg:
+          - "=== 端到端連通性 ==="
+          - ""
+          - "HQ -> DMZ:"
+          - "{{ hq_to_dmz.stdout_lines }}"
+          - ""
+          - "HQ -> Branch:"
+          - "{{ hq_to_branch.stdout_lines }}"
+
+- name: 生成驗證報告
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 顯示完整驗證摘要
+      debug:
+        msg:
+          - "════════════════════════════════════════════════════════"
+          - "  企業網路實驗室 - 部署驗證報告"
+          - "════════════════════════════════════════════════════════"
+          - ""
+          - "✅ 已完成驗證項目:"
+          - "  A. HSRP 與 VLAN 間路由"
+          - "  B. OSPF 鄰居與路由"
+          - "  C. GRE 隧道"
+          - "  D. eBGP 與外部連接"
+          - "  E. 內部預設路由"
+          - "  F. 端到端連通性"
+          - ""
+          - "📋 手動驗證項目 (請參考 PDF 第 5 節):"
+          - "  • OSPF 匯總驗證"
+          - "  • MD5 認證確認"
+          - "  • ACL hit 計數"
+          - "  • 故障切換測試 (F.1-F.3)"
+          - ""
+          - "📊 交付物清單:"
+          - "  • show standby brief (正常 + 切換後)"
+          - "  • show ip ospf neighbor"
+          - "  • show interface tunnel0"
+          - "  • show ip bgp summary"
+          - "  • Ping/Traceroute 截圖"
+          - "  • Network Diagram"
+          - ""
+          - "💾 儲存配置:"
+          - "  所有設備已執行 write memory"
+          - ""
+          - "🎉 部署完成！"

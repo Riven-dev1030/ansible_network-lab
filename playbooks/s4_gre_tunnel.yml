@@ -1,0 +1,123 @@
+---
+# S4 | GRE Underlay 與 Tunnel
+# 目標: R3↔BR1 GRE up/up，OSPF Area10 + MD5
+
+- name: 配置 R3 Underlay 與 GRE Tunnel
+  hosts: R3
+  gather_facts: no
+  tasks:
+    - name: 配置 Underlay 介面到 BR1
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/1
+          - description "Underlay to BR1"
+          - ip address 100.64.1.1 255.255.255.252
+          - no shutdown
+      register: result
+
+    - name: 配置 GRE Tunnel 0
+      cisco.ios.ios_config:
+        lines:
+          - interface Tunnel0
+          - description "GRE Tunnel to BR1"
+          - ip address 172.16.10.1 255.255.255.252
+          - tunnel source 100.64.1.1
+          - tunnel destination 100.64.1.2
+          - tunnel mode gre ip
+          - ip ospf 10 area 10
+          - ip ospf message-digest-key 1 md5 YourPassword123
+          - no shutdown
+
+    - name: 配置 OSPF Area 10 MD5 認證
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - area 10 authentication message-digest
+          - network 172.16.10.1 0.0.0.0 area 10
+        save_when: modified
+
+- name: 配置 BR1 Underlay 與 GRE Tunnel
+  hosts: BR1
+  gather_facts: no
+  tasks:
+    - name: 配置基本設定
+      cisco.ios.ios_config:
+        lines:
+          - hostname BR1
+          - no ip domain-lookup
+          - ip routing
+
+    - name: 配置 Underlay 介面到 R3
+      cisco.ios.ios_config:
+        lines:
+          - interface GigabitEthernet0/1
+          - description "Underlay to R3"
+          - ip address 100.64.1.2 255.255.255.252
+          - no shutdown
+
+    - name: 配置 GRE Tunnel 0
+      cisco.ios.ios_config:
+        lines:
+          - interface Tunnel0
+          - description "GRE Tunnel to R3"
+          - ip address 172.16.10.2 255.255.255.252
+          - tunnel source 100.64.1.2
+          - tunnel destination 100.64.1.1
+          - tunnel mode gre ip
+          - ip ospf 10 area 10
+          - ip ospf message-digest-key 1 md5 YourPassword123
+          - no shutdown
+
+    - name: 配置 OSPF Process 10 Area 10
+      cisco.ios.ios_config:
+        lines:
+          - router ospf 10
+          - router-id 4.4.4.4
+          - area 10 authentication message-digest
+          - network 172.16.10.2 0.0.0.0 area 10
+        save_when: modified
+
+- name: 驗證 GRE Tunnel 與 OSPF
+  hosts: R3,BR1
+  gather_facts: no
+  tasks:
+    - name: 檢查 Tunnel 狀態
+      cisco.ios.ios_command:
+        commands:
+          - show interface Tunnel0
+      register: tunnel_status
+
+    - name: 檢查 OSPF 鄰居 (Area 10)
+      cisco.ios.ios_command:
+        commands:
+          - show ip ospf neighbor
+      register: ospf_neighbors
+
+    - name: 檢查 MD5 認證
+      cisco.ios.ios_command:
+        commands:
+          - show ip ospf interface Tunnel0 | include message-digest
+      register: md5_auth
+
+    - name: 驗證 Underlay 連通性
+      cisco.ios.ios_command:
+        commands:
+          - ping 100.64.1.1 source 100.64.1.2
+          - ping 100.64.1.2 source 100.64.1.1
+      register: underlay_ping
+      ignore_errors: yes
+
+    - name: 驗證 Overlay 連通性
+      cisco.ios.ios_command:
+        commands:
+          - ping 172.16.10.1
+          - ping 172.16.10.2
+      register: overlay_ping
+      ignore_errors: yes
+
+    - name: 顯示驗證結果
+      debug:
+        msg:
+          - "Tunnel Status: {{ tunnel_status.stdout_lines[0] }}"
+          - "OSPF Neighbors: {{ ospf_neighbors.stdout_lines }}"
+          - "MD5 Auth: {{ md5_auth.stdout_lines }}"
