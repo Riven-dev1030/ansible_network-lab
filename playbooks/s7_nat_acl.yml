@@ -2,7 +2,7 @@
 # S7 | NAT 與 ACL (選配)
 # 目標: DMZ 防護 - 內部可訪問，外部受限
 
-- name: 情境 A: 內部測試 - DMZ ACL 配置
+- name: "情境 A: 內部測試 - DMZ ACL 配置"
   hosts: R3
   gather_facts: no
   tags: scenario_a
@@ -51,7 +51,7 @@
           - "2. DMZ -> HQ 內部: ping 10.10.10.x (應該被拒)"
           - "3. 檢查 ACL hit 計數: show access-lists"
 
-- name: 情境 B: 外部訪問 DMZ - NAT 配置 (進階)
+- name: "情境 B: 外部訪問 DMZ - NAT 配置 (進階)"
   hosts: R1
   gather_facts: no
   tags: scenario_b
