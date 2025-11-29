@@ -66,9 +66,14 @@
         lines:
           - hostname R1
           - no ip domain-lookup
-          - line con 0
+
+    - name: 配置 Console Line
+      cisco.ios.ios_config:
+        lines:
           - exec-timeout 0 0
           - logging synchronous
+        parents:
+          - line con 0
 
     - name: 配置主介面為 Trunk
       cisco.ios.ios_interfaces:

@@ -36,19 +36,28 @@
         lines:
           - hostname {{ inventory_hostname }}
 
-    - name: 基本設定
+    - name: 基本設定 (全局)
       cisco.ios.ios_config:
         lines:
           - no ip domain-lookup
           - service password-encryption
-          - line con 0
+
+    - name: 配置 Console Line
+      cisco.ios.ios_config:
+        lines:
           - exec-timeout 0 0
           - logging synchronous
-          - exit
-          - line vty 0 4
+        parents:
+          - line con 0
+
+    - name: 配置 VTY Lines
+      cisco.ios.ios_config:
+        lines:
           - exec-timeout 15 0
           - logging synchronous
           - transport input all
+        parents:
+          - line vty 0 4
 
     - name: 啟用 IP Routing (路由器)
       cisco.ios.ios_config:
