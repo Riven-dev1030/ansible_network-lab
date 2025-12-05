@@ -9,7 +9,7 @@
     - name: 配置 DMZ VLAN 50 子介面
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.50
+          - interface Ethernet0/0.50
           - encapsulation dot1Q 50
           - ip address 10.10.50.1 255.255.255.0
           - description "DMZ Network"
@@ -22,7 +22,7 @@
           - area 50 stub
           - network 10.10.99.3 0.0.0.0 area 0
           - network 10.10.50.1 0.0.0.0 area 50
-          - passive-interface GigabitEthernet0/0.50
+          - passive-interface Ethernet0/0.50
 
 - name: 配置 R1 OSPF Area 0
   hosts: R1
@@ -37,9 +37,9 @@
           - network 10.10.20.0 0.0.0.255 area 0
           - network 10.10.60.0 0.0.0.255 area 0
           - network 10.10.99.0 0.0.0.255 area 0
-          - passive-interface GigabitEthernet0/0.10
-          - passive-interface GigabitEthernet0/0.20
-          - passive-interface GigabitEthernet0/0.60
+          - passive-interface Ethernet0/0.10
+          - passive-interface Ethernet0/0.20
+          - passive-interface Ethernet0/0.60
 
 - name: 配置 R2 OSPF Area 0
   hosts: R2
@@ -54,9 +54,9 @@
           - network 10.10.20.0 0.0.0.255 area 0
           - network 10.10.60.0 0.0.0.255 area 0
           - network 10.10.99.0 0.0.0.255 area 0
-          - passive-interface GigabitEthernet0/0.10
-          - passive-interface GigabitEthernet0/0.20
-          - passive-interface GigabitEthernet0/0.60
+          - passive-interface Ethernet0/0.10
+          - passive-interface Ethernet0/0.20
+          - passive-interface Ethernet0/0.60
 
 - name: 驗證 OSPF 鄰居關係
   hosts: hq_routers

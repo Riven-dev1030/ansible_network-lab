@@ -24,7 +24,7 @@
     - name: 配置 Trunk 介面到 R1
       cisco.ios.ios_l2_interfaces:
         config:
-          - name: GigabitEthernet0/1
+          - name: Ethernet0/1
             mode: trunk
             trunk:
               allowed_vlans: "10,20,50,60,99"
@@ -33,7 +33,7 @@
     - name: 配置 Trunk 介面到 R2
       cisco.ios.ios_l2_interfaces:
         config:
-          - name: GigabitEthernet0/2
+          - name: Ethernet0/2
             mode: trunk
             trunk:
               allowed_vlans: "10,20,50,60,99"
@@ -42,7 +42,7 @@
     - name: 配置 Trunk 介面到 R3
       cisco.ios.ios_l2_interfaces:
         config:
-          - name: GigabitEthernet0/3
+          - name: Ethernet0/3
             mode: trunk
             trunk:
               allowed_vlans: "50,99"
@@ -51,7 +51,7 @@
     - name: 配置 WebSrv Access Port (VLAN 50)
       cisco.ios.ios_l2_interfaces:
         config:
-          - name: GigabitEthernet0/4
+          - name: Ethernet0/4
             mode: access
             access:
               vlan: 50
@@ -78,7 +78,7 @@
     - name: 配置主介面為 Trunk
       cisco.ios.ios_interfaces:
         config:
-          - name: GigabitEthernet0/0
+          - name: Ethernet0/0
             description: "Trunk to SW1"
             enabled: true
         state: merged
@@ -86,7 +86,7 @@
     - name: 配置 VLAN 10 子介面與 HSRP
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.10
+          - interface Ethernet0/0.10
           - encapsulation dot1Q 10
           - ip address 10.10.10.1 255.255.255.0
           - standby 10 ip 10.10.10.254
@@ -97,7 +97,7 @@
     - name: 配置 VLAN 20 子介面與 HSRP
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.20
+          - interface Ethernet0/0.20
           - encapsulation dot1Q 20
           - ip address 10.10.20.1 255.255.255.0
           - standby 20 ip 10.10.20.254
@@ -108,7 +108,7 @@
     - name: 配置 VLAN 60 子介面與 HSRP
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.60
+          - interface Ethernet0/0.60
           - encapsulation dot1Q 60
           - ip address 10.10.60.1 255.255.255.0
           - standby 60 ip 10.10.60.254
@@ -119,7 +119,7 @@
     - name: 配置 VLAN 99 Transit 子介面
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.99
+          - interface Ethernet0/0.99
           - encapsulation dot1Q 99
           - ip address 10.10.99.1 255.255.255.0
           - description "Transit VLAN for OSPF Area 0"
@@ -137,7 +137,7 @@
     - name: 配置主介面為 Trunk
       cisco.ios.ios_interfaces:
         config:
-          - name: GigabitEthernet0/0
+          - name: Ethernet0/0
             description: "Trunk to SW1"
             enabled: true
         state: merged
@@ -145,7 +145,7 @@
     - name: 配置 VLAN 10 子介面與 HSRP (Standby)
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.10
+          - interface Ethernet0/0.10
           - encapsulation dot1Q 10
           - ip address 10.10.10.2 255.255.255.0
           - standby 10 ip 10.10.10.254
@@ -156,7 +156,7 @@
     - name: 配置 VLAN 20 子介面與 HSRP (Standby)
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.20
+          - interface Ethernet0/0.20
           - encapsulation dot1Q 20
           - ip address 10.10.20.2 255.255.255.0
           - standby 20 ip 10.10.20.254
@@ -167,7 +167,7 @@
     - name: 配置 VLAN 60 子介面與 HSRP (Standby)
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.60
+          - interface Ethernet0/0.60
           - encapsulation dot1Q 60
           - ip address 10.10.60.2 255.255.255.0
           - standby 60 ip 10.10.60.254
@@ -178,7 +178,7 @@
     - name: 配置 VLAN 99 Transit 子介面
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.99
+          - interface Ethernet0/0.99
           - encapsulation dot1Q 99
           - ip address 10.10.99.2 255.255.255.0
           - description "Transit VLAN for OSPF Area 0"
@@ -196,7 +196,7 @@
     - name: 配置 VLAN 99 Transit 子介面
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/0.99
+          - interface Ethernet0/0.99
           - encapsulation dot1Q 99
           - ip address 10.10.99.3 255.255.255.0
           - description "Transit VLAN for OSPF Area 0"
