@@ -22,34 +22,31 @@
         state: merged
 
     - name: 配置 Trunk 介面到 R1
-      cisco.ios.ios_l2_interfaces:
-        config:
-          - name: Ethernet0/1
-            mode: trunk
-            trunk:
-              encapsulation: dot1q
-              allowed_vlans: "10,20,50,60,99"
-        state: merged
+      cisco.ios.ios_config:
+        lines:
+          - switchport trunk encapsulation dot1q
+          - switchport mode trunk
+          - switchport trunk allowed vlan 10,20,50,60,99
+        parents:
+          - interface Ethernet0/1
 
     - name: 配置 Trunk 介面到 R2
-      cisco.ios.ios_l2_interfaces:
-        config:
-          - name: Ethernet0/2
-            mode: trunk
-            trunk:
-              encapsulation: dot1q
-              allowed_vlans: "10,20,50,60,99"
-        state: merged
+      cisco.ios.ios_config:
+        lines:
+          - switchport trunk encapsulation dot1q
+          - switchport mode trunk
+          - switchport trunk allowed vlan 10,20,50,60,99
+        parents:
+          - interface Ethernet0/2
 
     - name: 配置 Trunk 介面到 R3
-      cisco.ios.ios_l2_interfaces:
-        config:
-          - name: Ethernet0/3
-            mode: trunk
-            trunk:
-              encapsulation: dot1q
-              allowed_vlans: "50,99"
-        state: merged
+      cisco.ios.ios_config:
+        lines:
+          - switchport trunk encapsulation dot1q
+          - switchport mode trunk
+          - switchport trunk allowed vlan 50,99
+        parents:
+          - interface Ethernet0/3
 
     - name: 配置 WebSrv Access Port (VLAN 50)
       cisco.ios.ios_l2_interfaces:
