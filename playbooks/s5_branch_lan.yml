@@ -20,14 +20,13 @@
         state: merged
 
     - name: 配置 Trunk 到 BR1
-      cisco.ios.ios_l2_interfaces:
-        config:
-          - name: Ethernet0/1
-            mode: trunk
-            trunk:
-              encapsulation: dot1q
-              allowed_vlans: "110"
-        state: merged
+      cisco.ios.ios_config:
+        lines:
+          - switchport trunk encapsulation dot1q
+          - switchport mode trunk
+          - switchport trunk allowed vlan 110
+        parents:
+          - interface Ethernet0/1
 
     - name: 配置 Access Port 到 Host-BR
       cisco.ios.ios_l2_interfaces:
