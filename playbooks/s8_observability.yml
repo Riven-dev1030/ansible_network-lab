@@ -1,27 +1,35 @@
 ---
 # S8 | 可觀測性與日誌
-# 目標: 基本日誌 + Syslog 配置
+# 目標: 基本日誌配置（LogServer 不存在，跳過 Syslog）
 
-- name: 配置 Syslog 到 LogSrv
+- name: 配置基本日誌
   hosts: cisco_devices
   gather_facts: no
   tasks:
-    - name: 配置 Syslog 伺服器
+    # LogServer 不存在，不配置遠端 Syslog
+    # - name: 配置 Syslog 伺服器
+    #   cisco.ios.ios_config:
+    #     lines:
+    #       - logging {{ syslog_server }}
+    #       - logging trap warnings
+    #       - logging source-interface Loopback0
+    #       - logging buffered 8192
+    #     save_when: modified
+    #   when: syslog_server is defined
+
+    - name: 配置本地緩衝日誌
       cisco.ios.ios_config:
         lines:
-          - logging {{ syslog_server }}
-          - logging trap warnings
-          - logging source-interface Loopback0
           - logging buffered 8192
+          - logging console warnings
         save_when: modified
-      when: syslog_server is defined
 
-    - name: 配置 Loopback 0 (如果不存在)
+    - name: 配置 Loopback 0 (用於管理)
       cisco.ios.ios_config:
         lines:
           - interface Loopback0
           - ip address {{ ansible_host }} 255.255.255.255
-          - description "Management and Syslog Source"
+          - description "Management Interface"
       when: inventory_hostname in groups['hq_routers'] or inventory_hostname in groups['branch_routers']
 
     - name: 啟用時間戳
@@ -30,20 +38,22 @@
           - service timestamps log datetime msec
           - service timestamps debug datetime msec
 
-- name: 驗證 Syslog 配置
+- name: 驗證日誌配置
   hosts: cisco_devices
   gather_facts: no
   tasks:
-    - name: 檢查 Syslog 配置
+    - name: 檢查日誌配置
       cisco.ios.ios_command:
         commands:
-          - show logging | include 10.10.60.10
+          - show logging
       register: logging_config
       ignore_errors: yes
 
     - name: 顯示 Logging 狀態
       debug:
-        var: logging_config.stdout_lines
+        msg:
+          - "{{ inventory_hostname }} 日誌配置:"
+          - "{{ logging_config.stdout_lines }}"
       when: logging_config is defined
 
 - name: 配置 SNMP (選配)

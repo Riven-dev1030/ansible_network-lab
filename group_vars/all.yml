@@ -106,8 +106,8 @@ isp_links:
     r2_ip: "198.51.100.2"
     isp2_ip: "198.51.100.1"
 
-# Syslog 伺服器
-syslog_server: "10.10.60.10"
+# Syslog 伺服器（LogServer 不存在，已停用）
+# syslog_server: "10.10.60.10"
 
 # DNS 伺服器 (如有)
 dns_servers:

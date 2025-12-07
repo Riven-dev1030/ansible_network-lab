@@ -13,7 +13,8 @@
 - **總部 (HQ)**：R1, R2 (HSRP 高可用), R3 (DMZ/ABR), SW1
 - **分公司 (Branch)**：BR1, BR-SW, Host-BR
 - **ISP**：ISP1 (AS65001), ISP2 (AS65002)
-- **伺服器**：WebSrv (DMZ), LogSrv (可選)
+- **伺服器**：WebSrv (DMZ)
+  - **註**: LogSrv 當前未部署，VLAN 60 保留供未來使用
 
 ### ✅ 核心功能
 - **HSRP** - 高可用閘道 (R1/R2)
@@ -22,7 +23,7 @@
 - **BGP eBGP** - 雙 ISP 冗餘連接
 - **GRE 隧道** - 總部與分公司 VPN
 - **ACL** - DMZ 安全防護
-- **Syslog** - 集中日誌管理
+- **本地日誌** - 設備本地緩衝日誌（可擴展為集中式 Syslog）
 
 ### 🌐 網路規劃
 ```
