@@ -17,7 +17,7 @@
     - name: 配置 ISP1 介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0
+          - interface Ethernet0/1
           - description "Link to R1"
           - ip address 203.0.113.1 255.255.255.252
           - no shutdown
@@ -34,7 +34,7 @@
     - name: 配置 ISP2 介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0
+          - interface Ethernet0/1
           - description "Link to R2"
           - ip address 198.51.100.1 255.255.255.252
           - no shutdown

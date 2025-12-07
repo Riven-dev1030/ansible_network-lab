@@ -28,7 +28,7 @@
           - switchport mode trunk
           - switchport trunk allowed vlan 10,20,50,60,99
         parents:
-          - interface Ethernet0/1
+          - interface Ethernet0/0
 
     - name: 配置 Trunk 介面到 R2
       cisco.ios.ios_config:
@@ -37,7 +37,7 @@
           - switchport mode trunk
           - switchport trunk allowed vlan 10,20,50,60,99
         parents:
-          - interface Ethernet0/2
+          - interface Ethernet0/1
 
     - name: 配置 Trunk 介面到 R3
       cisco.ios.ios_config:
@@ -46,12 +46,12 @@
           - switchport mode trunk
           - switchport trunk allowed vlan 50,99
         parents:
-          - interface Ethernet0/3
+          - interface Ethernet0/2
 
     - name: 配置 WebSrv Access Port (VLAN 50)
       cisco.ios.ios_l2_interfaces:
         config:
-          - name: Ethernet0/4
+          - name: Ethernet1/0
             mode: access
             access:
               vlan: 50

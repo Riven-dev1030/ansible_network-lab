@@ -26,7 +26,7 @@
           - switchport mode trunk
           - switchport trunk allowed vlan 110
         parents:
-          - interface Ethernet0/1
+          - interface Ethernet0/0
 
     - name: 配置 Access Port 到 Host-BR
       cisco.ios.ios_l2_interfaces:
