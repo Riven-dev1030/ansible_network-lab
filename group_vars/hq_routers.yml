@@ -19,91 +19,91 @@ bgp_router_ids:
 interfaces:
   R1:
     physical:
-      GigabitEthernet0/0:
+      Ethernet0/0:
         description: "Trunk to SW1"
         mode: trunk
-      GigabitEthernet0/1:
+      Ethernet0/1:
         description: "Link to ISP1"
         ip_address: "203.0.113.2"
         subnet_mask: "255.255.255.252"
     subinterfaces:
-      GigabitEthernet0/0.10:
+      Ethernet0/0.10:
         encapsulation: "dot1Q 10"
         ip_address: "10.10.10.1"
         subnet_mask: "255.255.255.0"
         hsrp_group: 10
         hsrp_priority: 110
         hsrp_vip: "10.10.10.254"
-      GigabitEthernet0/0.20:
+      Ethernet0/0.20:
         encapsulation: "dot1Q 20"
         ip_address: "10.10.20.1"
         subnet_mask: "255.255.255.0"
         hsrp_group: 20
         hsrp_priority: 110
         hsrp_vip: "10.10.20.254"
-      GigabitEthernet0/0.60:
+      Ethernet0/0.60:
         encapsulation: "dot1Q 60"
         ip_address: "10.10.60.1"
         subnet_mask: "255.255.255.0"
         hsrp_group: 60
         hsrp_priority: 110
         hsrp_vip: "10.10.60.254"
-      GigabitEthernet0/0.99:
+      Ethernet0/0.99:
         encapsulation: "dot1Q 99"
         ip_address: "10.10.99.1"
         subnet_mask: "255.255.255.0"
 
   R2:
     physical:
-      GigabitEthernet0/0:
+      Ethernet0/0:
         description: "Trunk to SW1"
         mode: trunk
-      GigabitEthernet0/1:
+      Ethernet0/1:
         description: "Link to ISP2"
         ip_address: "198.51.100.2"
         subnet_mask: "255.255.255.252"
     subinterfaces:
-      GigabitEthernet0/0.10:
+      Ethernet0/0.10:
         encapsulation: "dot1Q 10"
         ip_address: "10.10.10.2"
         subnet_mask: "255.255.255.0"
         hsrp_group: 10
         hsrp_priority: 100
         hsrp_vip: "10.10.10.254"
-      GigabitEthernet0/0.20:
+      Ethernet0/0.20:
         encapsulation: "dot1Q 20"
         ip_address: "10.10.20.2"
         subnet_mask: "255.255.255.0"
         hsrp_group: 20
         hsrp_priority: 100
         hsrp_vip: "10.10.20.254"
-      GigabitEthernet0/0.60:
+      Ethernet0/0.60:
         encapsulation: "dot1Q 60"
         ip_address: "10.10.60.2"
         subnet_mask: "255.255.255.0"
         hsrp_group: 60
         hsrp_priority: 100
         hsrp_vip: "10.10.60.254"
-      GigabitEthernet0/0.99:
+      Ethernet0/0.99:
         encapsulation: "dot1Q 99"
         ip_address: "10.10.99.2"
         subnet_mask: "255.255.255.0"
 
   R3:
     physical:
-      GigabitEthernet0/0:
+      Ethernet0/0:
         description: "Trunk to SW1"
         mode: trunk
-      GigabitEthernet0/1:
+      Ethernet0/1:
         description: "Underlay to BR1"
         ip_address: "100.64.1.1"
         subnet_mask: "255.255.255.252"
     subinterfaces:
-      GigabitEthernet0/0.50:
+      Ethernet0/0.50:
         encapsulation: "dot1Q 50"
         ip_address: "10.10.50.1"
         subnet_mask: "255.255.255.0"
-      GigabitEthernet0/0.99:
+      Ethernet0/0.99:
         encapsulation: "dot1Q 99"
         ip_address: "10.10.99.3"
         subnet_mask: "255.255.255.0"

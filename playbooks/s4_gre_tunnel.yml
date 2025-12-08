@@ -9,7 +9,7 @@
     - name: 配置 Underlay 介面到 BR1
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/1
+          - interface Ethernet0/1
           - description "Underlay to BR1"
           - ip address 100.64.1.1 255.255.255.252
           - no shutdown
@@ -50,7 +50,7 @@
     - name: 配置 Underlay 介面到 R3
       cisco.ios.ios_config:
         lines:
-          - interface GigabitEthernet0/1
+          - interface Ethernet0/1
           - description "Underlay to R3"
           - ip address 100.64.1.2 255.255.255.252
           - no shutdown

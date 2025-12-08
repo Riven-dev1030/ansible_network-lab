@@ -1,0 +1,13 @@
+網路拓撲結構
+ISP 層
+ISP1 e0/1 ←→ e0/1 R1
+ISP2 e0/1 ←→ e0/1 R2
+核心交換層
+R1 e0/0 ←→ e0/0 SW1
+R2 e0/0 ←→ e0/1 SW1
+分支連接
+SW1 e0/2 ←→ e0/0 R3
+R3 e0/1 ←→ e0/1 BR1
+BR1 e0/0 ←→ e0/0 BR-SW
+服務器連接
+SW1 e1/0 ←→ e0 webserver
