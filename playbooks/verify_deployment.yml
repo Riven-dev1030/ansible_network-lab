@@ -132,7 +132,7 @@
           - "  - 應有 O*E2 0.0.0.0/0"
 
 - name: F. 端到端連通性測試
-  hosts: R3
+  hosts: R1
   gather_facts: no
   tasks:
     - name: HQ 到 DMZ
