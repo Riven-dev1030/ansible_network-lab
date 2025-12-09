@@ -155,10 +155,10 @@
           - "=== 端到端連通性 ==="
           - ""
           - "HQ -> DMZ:"
-          - "{{ hq_to_dmz.stdout_lines }}"
+          - "{{ hq_to_dmz.stdout_lines | default(['測試失敗或未執行']) }}"
           - ""
           - "HQ -> Branch:"
-          - "{{ hq_to_branch.stdout_lines }}"
+          - "{{ hq_to_branch.stdout_lines | default(['測試失敗或未執行']) }}"
 
 - name: 生成驗證報告
   hosts: localhost
