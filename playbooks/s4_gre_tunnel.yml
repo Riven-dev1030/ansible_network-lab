@@ -105,21 +105,37 @@
           - show ip ospf interface Tunnel0 | include message-digest
       register: md5_auth
 
-    - name: 驗證 Underlay 連通性
+    - name: 驗證 Underlay 連通性 (R3)
       cisco.ios.ios_command:
         commands:
-          - ping 100.64.1.1 source 100.64.1.2
           - ping 100.64.1.2 source 100.64.1.1
       register: underlay_ping
       ignore_errors: yes
+      when: inventory_hostname == 'R3'
 
-    - name: 驗證 Overlay 連通性
+    - name: 驗證 Underlay 連通性 (BR1)
       cisco.ios.ios_command:
         commands:
-          - ping 172.16.10.1
+          - ping 100.64.1.1 source 100.64.1.2
+      register: underlay_ping
+      ignore_errors: yes
+      when: inventory_hostname == 'BR1'
+
+    - name: 驗證 Overlay 連通性 (R3)
+      cisco.ios.ios_command:
+        commands:
           - ping 172.16.10.2
       register: overlay_ping
       ignore_errors: yes
+      when: inventory_hostname == 'R3'
+
+    - name: 驗證 Overlay 連通性 (BR1)
+      cisco.ios.ios_command:
+        commands:
+          - ping 172.16.10.1
+      register: overlay_ping
+      ignore_errors: yes
+      when: inventory_hostname == 'BR1'
 
     - name: 顯示驗證結果
       debug:
