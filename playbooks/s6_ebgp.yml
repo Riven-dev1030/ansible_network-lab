@@ -45,20 +45,22 @@
     - name: 配置 ISP1 BGP
       cisco.ios.ios_config:
         lines:
-          - router bgp 65001
           - bgp router-id 101.101.101.101
           - neighbor 203.0.113.2 remote-as 65010
           - network 0.0.0.0
+        parents:
+          - router bgp 65001
         save_when: modified
       when: inventory_hostname == 'ISP1'
 
     - name: 配置 ISP2 BGP
       cisco.ios.ios_config:
         lines:
-          - router bgp 65002
           - bgp router-id 102.102.102.102
           - neighbor 198.51.100.2 remote-as 65010
           - network 0.0.0.0
+        parents:
+          - router bgp 65002
         save_when: modified
       when: inventory_hostname == 'ISP2'
 
@@ -83,7 +85,6 @@
     - name: 配置 BGP
       cisco.ios.ios_config:
         lines:
-          - router bgp 65010
           - bgp router-id 1.1.1.1
           - neighbor 203.0.113.1 remote-as 65001
           - address-family ipv4
@@ -92,6 +93,8 @@
           - aggregate-address 10.10.0.0 255.255.0.0 summary-only
           - aggregate-address 10.110.0.0 255.255.0.0 summary-only
           - exit-address-family
+        parents:
+          - router bgp 65010
         save_when: modified
 
     - name: 配置靜態路由指向 Null0 (用於 BGP network 宣告)
@@ -108,8 +111,9 @@
     - name: 將預設路由注入 OSPF
       cisco.ios.ios_config:
         lines:
-          - router ospf 10
           - default-information originate always
+        parents:
+          - router ospf 10
         save_when: modified
 
 - name: 配置 R2 到 ISP2 的連接與 eBGP
@@ -128,7 +132,6 @@
     - name: 配置 BGP
       cisco.ios.ios_config:
         lines:
-          - router bgp 65010
           - bgp router-id 2.2.2.2
           - neighbor 198.51.100.1 remote-as 65002
           - address-family ipv4
@@ -137,6 +140,8 @@
           - aggregate-address 10.10.0.0 255.255.0.0 summary-only
           - aggregate-address 10.110.0.0 255.255.0.0 summary-only
           - exit-address-family
+        parents:
+          - router bgp 65010
         save_when: modified
 
     - name: 配置靜態路由指向 Null0
@@ -153,8 +158,9 @@
     - name: 將預設路由注入 OSPF
       cisco.ios.ios_config:
         lines:
-          - router ospf 10
           - default-information originate always
+        parents:
+          - router ospf 10
         save_when: modified
 
 - name: 驗證 BGP 與路由

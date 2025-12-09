@@ -33,9 +33,10 @@
     - name: 配置 OSPF Area 10 MD5 認證
       cisco.ios.ios_config:
         lines:
-          - router ospf 10
           - area 10 authentication message-digest
           - network 172.16.10.1 0.0.0.0 area 10
+        parents:
+          - router ospf 10
         save_when: modified
 
 - name: 配置 BR1 Underlay 與 GRE Tunnel
@@ -75,10 +76,11 @@
     - name: 配置 OSPF Process 10 Area 10
       cisco.ios.ios_config:
         lines:
-          - router ospf 10
           - router-id 4.4.4.4
           - area 10 authentication message-digest
           - network 172.16.10.2 0.0.0.0 area 10
+        parents:
+          - router ospf 10
         save_when: modified
 
 - name: 驗證 GRE Tunnel 與 OSPF

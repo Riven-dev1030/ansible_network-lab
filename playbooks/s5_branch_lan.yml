@@ -61,9 +61,10 @@
     - name: 將分公司網段加入 OSPF Area 10
       cisco.ios.ios_config:
         lines:
-          - router ospf 10
           - network 10.110.10.0 0.0.0.255 area 10
           - passive-interface Ethernet0/0.110
+        parents:
+          - router ospf 10
         save_when: modified
 
 - name: 驗證分公司連通性
