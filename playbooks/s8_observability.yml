@@ -24,13 +24,14 @@
           - logging console warnings
         save_when: modified
 
-    - name: 配置 Loopback 0 (用於管理)
-      cisco.ios.ios_config:
-        lines:
-          - interface Loopback0
-          - ip address {{ ansible_host }} 255.255.255.255
-          - description "Management Interface"
-      when: inventory_hostname in groups['hq_routers'] or inventory_hostname in groups['branch_routers']
+    # Loopback0 配置已註解 - ansible_host 使用管理網路 (192.168.1.x)，不適合用於 Loopback
+    # - name: 配置 Loopback 0 (用於管理)
+    #   cisco.ios.ios_config:
+    #     lines:
+    #       - interface Loopback0
+    #       - ip address {{ ansible_host }} 255.255.255.255
+    #       - description "Management Interface"
+    #   when: inventory_hostname in groups['hq_routers'] or inventory_hostname in groups['branch_routers']
 
     - name: 啟用時間戳
       cisco.ios.ios_config:
