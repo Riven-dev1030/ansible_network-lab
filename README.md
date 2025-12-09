@@ -132,6 +132,9 @@ ansible-playbook playbooks/s7_nat_acl.yml --tags scenario_a
 
 # S8: 可觀測性與日誌
 ansible-playbook playbooks/s8_observability.yml
+
+# S9: ISP 管理網路路由 (選配)
+ansible-playbook playbooks/s9_isp_mgmt_routing.yml
 ```
 
 #### 驗證部署
@@ -169,6 +172,7 @@ ansible_network-lab/
 │   ├── s6_ebgp.yml             # S6: BGP
 │   ├── s7_nat_acl.yml          # S7: NAT/ACL
 │   ├── s8_observability.yml    # S8: 日誌
+│   ├── s9_isp_mgmt_routing.yml # S9: ISP 管理網路路由
 │   └── verify_deployment.yml   # 驗證腳本
 │
 └── roles/                       # Ansible Roles (未來擴展)
