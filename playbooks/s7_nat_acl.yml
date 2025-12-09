@@ -10,11 +10,12 @@
     - name: 創建 ACL - DMZ 到內部 (拒絕主動連接)
       cisco.ios.ios_config:
         lines:
-          - ip access-list extended DMZ-TO-INTERNAL
           - deny ip 10.10.50.0 0.0.0.255 10.10.10.0 0.0.0.255
           - deny ip 10.10.50.0 0.0.0.255 10.10.20.0 0.0.0.255
           - deny ip 10.10.50.0 0.0.0.255 10.10.60.0 0.0.0.255
           - permit ip any any
+        parents:
+          - ip access-list extended DMZ-TO-INTERNAL
 
     - name: 應用 ACL 到 DMZ 介面 (入方向)
       cisco.ios.ios_config:
@@ -26,7 +27,6 @@
     - name: 創建 ACL - 內部到 DMZ (僅允許 HTTP/HTTPS)
       cisco.ios.ios_config:
         lines:
-          - ip access-list extended INTERNAL-TO-DMZ
           - permit tcp 10.10.10.0 0.0.0.255 host 10.10.50.10 eq 80
           - permit tcp 10.10.10.0 0.0.0.255 host 10.10.50.10 eq 443
           - permit tcp 10.10.20.0 0.0.0.255 host 10.10.50.10 eq 80
@@ -34,6 +34,8 @@
           - permit icmp any any echo-reply
           - deny ip any host 10.10.50.10 log
           - permit ip any any
+        parents:
+          - ip access-list extended INTERNAL-TO-DMZ
 
     - name: 應用內部 ACL
       cisco.ios.ios_config:
@@ -81,11 +83,12 @@
     - name: 創建外部訪問 ACL (僅允許 80/443)
       cisco.ios.ios_config:
         lines:
-          - ip access-list extended OUTSIDE-TO-DMZ
           - permit tcp any host 203.0.113.10 eq 80
           - permit tcp any host 203.0.113.10 eq 443
           - deny ip any host 203.0.113.10 log
           - permit ip any any
+        parents:
+          - ip access-list extended OUTSIDE-TO-DMZ
 
     - name: 應用 ACL 到外部介面
       cisco.ios.ios_config:
