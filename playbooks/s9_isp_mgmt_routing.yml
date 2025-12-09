@@ -1,18 +1,18 @@
 ---
-# S9 | ISP 管理网络路由配置
-# 目标: 配置 ISP 路由器通过管理网络 (mg) 的流量路由
+# S9 | ISP 管理網路路由配置
+# 目標: 配置 ISP 路由器透過管理網路 (mg) 的流量路由
 
-- name: 配置 ISP 路由器管理网络路由
+- name: 配置 ISP 路由器管理網路路由
   hosts: isp
   gather_facts: no
   vars:
-    # 管理网络配置
+    # 管理網路配置
     mgmt_network: "192.168.1.0 255.255.255.0"
     mgmt_gateway:
-      ISP1: "192.168.1.1"  # mg_sw1 的网关 IP
-      ISP2: "192.168.1.1"  # mg_sw1 的网关 IP
+      ISP1: "192.168.1.1"  # mg_sw1 的網關 IP
+      ISP2: "192.168.1.1"  # mg_sw1 的網關 IP
 
-    # ISP 管理接口配置
+    # ISP 管理介面配置
     mgmt_interfaces:
       ISP1:
         interface: "GigabitEthernet0/2"
@@ -26,7 +26,7 @@
         description: "Management Network - mg_sw19"
 
   tasks:
-    - name: 配置 ISP 管理网络接口
+    - name: 配置 ISP 管理網路介面
       cisco.ios.ios_config:
         lines:
           - interface {{ mgmt_interfaces[inventory_hostname].interface }}
@@ -34,16 +34,16 @@
           - ip address {{ mgmt_interfaces[inventory_hostname].ip }} {{ mgmt_interfaces[inventory_hostname].netmask }}
           - no shutdown
 
-    - name: 配置到内部网络的静态路由 (通过管理网络)
+    - name: 配置到內部網路的靜態路由 (透過管理網路)
       cisco.ios.ios_config:
         lines:
-          # 到 HQ 内部网络的路由
+          # 到 HQ 內部網路的路由
           - ip route 10.10.0.0 255.255.0.0 {{ mgmt_gateway[inventory_hostname] }} 250
-          # 到分公司网络的路由
+          # 到分公司網路的路由
           - ip route 10.110.0.0 255.255.0.0 {{ mgmt_gateway[inventory_hostname] }} 250
         save_when: modified
 
-    - name: 配置管理网络的访问控制 (可选 - 增强安全性)
+    - name: 配置管理網路的存取控制 (可選 - 增強安全性)
       cisco.ios.ios_config:
         lines:
           - ip access-list standard MGMT_ACCESS
@@ -53,68 +53,68 @@
           - deny any log
         save_when: modified
 
-    - name: 应用访问控制到管理接口 (可选)
+    - name: 套用存取控制到管理介面 (可選)
       cisco.ios.ios_config:
         lines:
           - interface {{ mgmt_interfaces[inventory_hostname].interface }}
           - ip access-group MGMT_ACCESS in
 
-    - name: 配置策略路由 (可选 - 用于特定流量通过管理网络)
+    - name: 配置策略路由 (可選 - 用於特定流量透過管理網路)
       cisco.ios.ios_config:
         lines:
           - route-map MGMT_ROUTE permit 10
           - match ip address MGMT_TRAFFIC
           - set ip next-hop {{ mgmt_gateway[inventory_hostname] }}
         save_when: modified
-      when: false  # 默认关闭，需要时设置为 true
+      when: false  # 預設關閉，需要時設定為 true
 
-- name: 验证 ISP 管理网络路由配置
+- name: 驗證 ISP 管理網路路由配置
   hosts: isp
   gather_facts: no
   tasks:
-    - name: 检查管理接口状态
+    - name: 檢查管理介面狀態
       cisco.ios.ios_command:
         commands:
           - show ip interface brief | include GigabitEthernet0/2
       register: mgmt_interface_status
 
-    - name: 检查路由表
+    - name: 檢查路由表
       cisco.ios.ios_command:
         commands:
           - show ip route | include 10.10.0.0|10.110.0.0|192.168.1.0
       register: route_table
 
-    - name: 检查访问控制列表
+    - name: 檢查存取控制列表
       cisco.ios.ios_command:
         commands:
           - show ip access-lists MGMT_ACCESS
       register: acl_status
       ignore_errors: yes
 
-    - name: 测试到管理网关的连通性
+    - name: 測試到管理網關的連通性
       cisco.ios.ios_command:
         commands:
           - ping 192.168.1.1 repeat 5
       register: ping_gateway
 
-    - name: 显示验证结果
+    - name: 顯示驗證結果
       debug:
         msg:
-          - "=== {{ inventory_hostname }} 管理网络配置验证 ==="
+          - "=== {{ inventory_hostname }} 管理網路配置驗證 ==="
           - ""
-          - "管理接口状态:"
+          - "管理介面狀態:"
           - "{{ mgmt_interface_status.stdout_lines }}"
           - ""
-          - "路由表 (管理和内部网络):"
+          - "路由表 (管理和內部網路):"
           - "{{ route_table.stdout_lines }}"
           - ""
-          - "访问控制列表:"
+          - "存取控制列表:"
           - "{{ acl_status.stdout_lines | default(['未配置']) }}"
           - ""
-          - "管理网关连通性测试:"
+          - "管理網關連通性測試:"
           - "{{ ping_gateway.stdout_lines }}"
 
-- name: 配置管理交换机 (mg_sw1) 的路由 (如果需要)
+- name: 配置管理交換機 (mg_sw1) 的路由 (如果需要)
   hosts: hq_switches
   gather_facts: no
   tasks:
@@ -134,7 +134,7 @@
       when: inventory_hostname == 'SW1'
       ignore_errors: yes
 
-    - name: 配置到 ISP 的静态路由
+    - name: 配置到 ISP 的靜態路由
       cisco.ios.ios_config:
         lines:
           - ip route 203.0.113.0 255.255.255.252 192.168.1.31
@@ -143,25 +143,25 @@
       when: inventory_hostname == 'SW1'
       ignore_errors: yes
 
-- name: 配置 HQ 路由器的管理网络回程路由
+- name: 配置 HQ 路由器的管理網路回程路由
   hosts: hq_routers
   gather_facts: no
   tasks:
-    - name: 配置到管理网络的静态路由
+    - name: 配置到管理網路的靜態路由
       cisco.ios.ios_config:
         lines:
           - ip route 192.168.1.0 255.255.255.0 10.10.99.1 250
         save_when: modified
       when: inventory_hostname in ['R1', 'R2']
 
-    - name: 验证路由配置
+    - name: 驗證路由配置
       cisco.ios.ios_command:
         commands:
           - show ip route 192.168.1.0
       register: mgmt_route
 
-    - name: 显示路由信息
+    - name: 顯示路由資訊
       debug:
         msg:
-          - "{{ inventory_hostname }} 到管理网络的路由:"
+          - "{{ inventory_hostname }} 到管理網路的路由:"
           - "{{ mgmt_route.stdout_lines }}"

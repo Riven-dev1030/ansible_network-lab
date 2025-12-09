@@ -1,10 +1,10 @@
-# ISP 管理网络路由配置指南
+# ISP 管理網路路由配置指南
 
 ## 概述
 
-本文档说明如何配置 ISP 路由器，使流量能够通过管理网络 (mg) 进行路由。
+本文檔說明如何配置 ISP 路由器，使流量能夠透過管理網路 (mg) 進行路由。
 
-## 网络拓扑
+## 網路拓撲
 
 ```
           Internet (Net)
@@ -28,56 +28,56 @@
     └────────────┘         └────────────┘
 ```
 
-## 管理网络配置
+## 管理網路配置
 
-### 网络地址规划
+### 網路位址規劃
 
-- **管理网络**: 192.168.1.0/24
-- **管理网关**: 192.168.1.1 (mg_sw1)
+- **管理網路**: 192.168.1.0/24
+- **管理網關**: 192.168.1.1 (mg_sw1)
 - **ISP1 管理 IP**: 192.168.1.31
 - **ISP2 管理 IP**: 192.168.1.32
-- **其他设备**: 192.168.1.11-42
+- **其他設備**: 192.168.1.11-42
 
-## 配置目标
+## 配置目標
 
-实现以下路由需求：
+實現以下路由需求：
 
-1. **ISP → 内部网络**: ISP 路由器能够通过管理网络访问内部网络 (10.10.0.0/16, 10.110.0.0/16)
-2. **内部网络 → ISP**: 内部设备能够通过管理网络访问 ISP 路由器
-3. **流量隔离**: 生产流量和管理流量分离
+1. **ISP → 內部網路**: ISP 路由器能夠透過管理網路存取內部網路 (10.10.0.0/16, 10.110.0.0/16)
+2. **內部網路 → ISP**: 內部設備能夠透過管理網路存取 ISP 路由器
+3. **流量隔離**: 生產流量和管理流量分離
 
-## 配置步骤
+## 配置步驟
 
-### 方法 1: 使用 Ansible Playbook (推荐)
+### 方法 1: 使用 Ansible Playbook (推薦)
 
-运行以下命令应用配置：
+執行以下命令套用配置：
 
 ```bash
-# 执行 ISP 管理网络路由配置
+# 執行 ISP 管理網路路由配置
 ansible-playbook playbooks/s9_isp_mgmt_routing.yml
 
 # 或者使用完整部署
 ansible-playbook playbooks/deploy_all.yml
 ```
 
-### 方法 2: 手动配置
+### 方法 2: 手動配置
 
 #### 在 ISP1 上配置
 
 ```cisco
-! 1. 配置管理网络接口
+! 1. 配置管理網路介面
 interface GigabitEthernet0/2
  description Management Network - mg_sw1
  ip address 192.168.1.31 255.255.255.0
  no shutdown
 exit
 
-! 2. 配置到内部网络的静态路由 (较低优先级)
-! Administrative Distance = 250 (低于 BGP 的 200/20)
+! 2. 配置到內部網路的靜態路由 (較低優先權)
+! Administrative Distance = 250 (低於 BGP 的 200/20)
 ip route 10.10.0.0 255.255.0.0 192.168.1.1 250
 ip route 10.110.0.0 255.255.0.0 192.168.1.1 250
 
-! 3. (可选) 配置访问控制
+! 3. (可選) 配置存取控制
 ip access-list standard MGMT_ACCESS
  permit 192.168.1.0 0.0.0.255
  permit 10.10.0.0 0.0.255.255
@@ -89,25 +89,25 @@ interface GigabitEthernet0/2
  ip access-group MGMT_ACCESS in
 exit
 
-! 4. 保存配置
+! 4. 儲存配置
 write memory
 ```
 
 #### 在 ISP2 上配置
 
 ```cisco
-! 1. 配置管理网络接口
+! 1. 配置管理網路介面
 interface GigabitEthernet0/2
  description Management Network - mg_sw19
  ip address 192.168.1.32 255.255.255.0
  no shutdown
 exit
 
-! 2. 配置到内部网络的静态路由
+! 2. 配置到內部網路的靜態路由
 ip route 10.10.0.0 255.255.0.0 192.168.1.1 250
 ip route 10.110.0.0 255.255.0.0 192.168.1.1 250
 
-! 3. (可选) 配置访问控制
+! 3. (可選) 配置存取控制
 ip access-list standard MGMT_ACCESS
  permit 192.168.1.0 0.0.0.255
  permit 10.10.0.0 0.0.255.255
@@ -119,14 +119,14 @@ interface GigabitEthernet0/2
  ip access-group MGMT_ACCESS in
 exit
 
-! 4. 保存配置
+! 4. 儲存配置
 write memory
 ```
 
-#### 在管理交换机 (mg_sw1/SW1) 上配置 (如果需要)
+#### 在管理交換機 (mg_sw1/SW1) 上配置 (如果需要)
 
 ```cisco
-! 如果 mg_sw1 是 Layer 3 交换机
+! 如果 mg_sw1 是 Layer 3 交換機
 ip routing
 
 interface Vlan1
@@ -134,11 +134,11 @@ interface Vlan1
  no shutdown
 exit
 
-! 配置到 ISP 公网的静态路由
+! 配置到 ISP 公網的靜態路由
 ip route 203.0.113.0 255.255.255.252 192.168.1.31
 ip route 198.51.100.0 255.255.255.252 192.168.1.32
 
-! 配置到内部网络的路由 (通过 R1/R2)
+! 配置到內部網路的路由 (透過 R1/R2)
 ip route 10.10.0.0 255.255.0.0 192.168.1.11
 ip route 10.110.0.0 255.255.0.0 192.168.1.11
 
@@ -154,151 +154,151 @@ ip route 192.168.1.0 255.255.255.0 10.10.99.1 250
 write memory
 ```
 
-## 验证配置
+## 驗證配置
 
-### 1. 检查 ISP 接口状态
+### 1. 檢查 ISP 介面狀態
 
 ```bash
 # 在 ISP1/ISP2 上
 show ip interface brief | include GigabitEthernet0/2
 ```
 
-预期输出：
+預期輸出：
 ```
 GigabitEthernet0/2     192.168.1.31    YES manual up                    up
 ```
 
-### 2. 检查路由表
+### 2. 檢查路由表
 
 ```bash
 # 在 ISP1/ISP2 上
 show ip route | include 10.10.0.0|10.110.0.0|192.168.1.0
 ```
 
-预期输出：
+預期輸出：
 ```
 S    10.10.0.0/16 [250/0] via 192.168.1.1
 S    10.110.0.0/16 [250/0] via 192.168.1.1
 C    192.168.1.0/24 is directly connected, GigabitEthernet0/2
 ```
 
-### 3. 测试连通性
+### 3. 測試連通性
 
 ```bash
-# 从 ISP1 ping 管理网关
+# 從 ISP1 ping 管理網關
 ping 192.168.1.1
 
-# 从 ISP1 ping 内部设备 (通过管理网络)
+# 從 ISP1 ping 內部設備 (透過管理網路)
 ping 192.168.1.11 source 192.168.1.31
 
-# 从 ISP1 测试到内部网络的路由
+# 從 ISP1 測試到內部網路的路由
 traceroute 10.10.10.1 source 192.168.1.31
 ```
 
-### 4. 使用 Ansible 验证
+### 4. 使用 Ansible 驗證
 
 ```bash
 ansible-playbook playbooks/s9_isp_mgmt_routing.yml --tags verify
 ```
 
-## 路由优先级说明
+## 路由優先權說明
 
-配置使用了不同的 Administrative Distance (AD) 来控制路由选择：
+配置使用了不同的 Administrative Distance (AD) 來控制路由選擇：
 
-| 路由类型 | Administrative Distance | 用途 |
+| 路由類型 | Administrative Distance | 用途 |
 |---------|------------------------|------|
-| 直连路由 | 0 | 最高优先级 |
-| 静态路由 (默认) | 1 | 生产流量 |
-| eBGP | 20 | 生产流量 (ISP 连接) |
-| OSPF | 110 | 内部路由 |
-| 静态路由 (备份) | **250** | 管理网络备份路由 |
+| 直連路由 | 0 | 最高優先權 |
+| 靜態路由 (預設) | 1 | 生產流量 |
+| eBGP | 20 | 生產流量 (ISP 連接) |
+| OSPF | 110 | 內部路由 |
+| 靜態路由 (備份) | **250** | 管理網路備份路由 |
 
-**关键点**: 通过设置 AD=250，管理网络路由只在生产路由不可用时才会被使用。
+**關鍵點**: 透過設定 AD=250，管理網路路由只在生產路由不可用時才會被使用。
 
 ## 流量流向
 
-### 场景 1: 正常生产流量 (通过 BGP)
+### 場景 1: 正常生產流量 (透過 BGP)
 
 ```
 Client → R1/R2 → ISP1/ISP2 (via Gi0/1) → Internet
 ```
 
-### 场景 2: 管理流量 (通过管理网络)
+### 場景 2: 管理流量 (透過管理網路)
 
 ```
-ISP1 (Gi0/2) → mg_sw1 → 内部设备 (192.168.1.x)
+ISP1 (Gi0/2) → mg_sw1 → 內部設備 (192.168.1.x)
 ```
 
-### 场景 3: 生产路由故障时的备份路由
+### 場景 3: 生產路由故障時的備份路由
 
 ```
-ISP1 (Gi0/2) → mg_sw1 → R1/R2 → 内部网络 (10.10.x.x)
+ISP1 (Gi0/2) → mg_sw1 → R1/R2 → 內部網路 (10.10.x.x)
 ```
 
-## 安全考虑
+## 安全考量
 
-1. **访问控制列表 (ACL)**: 限制管理接口只接受来自授权网络的流量
-2. **流量隔离**: 生产流量和管理流量使用不同接口
-3. **监控**: 建议配置 syslog 监控异常流量
-4. **防火墙规则**: 在生产环境中应添加更严格的防火墙规则
+1. **存取控制列表 (ACL)**: 限制管理介面只接受來自授權網路的流量
+2. **流量隔離**: 生產流量和管理流量使用不同介面
+3. **監控**: 建議配置 syslog 監控異常流量
+4. **防火牆規則**: 在生產環境中應新增更嚴格的防火牆規則
 
 ## 故障排除
 
-### 问题 1: ISP 无法访问内部网络
+### 問題 1: ISP 無法存取內部網路
 
-**检查项**:
+**檢查項**:
 ```bash
-# 1. 检查接口状态
+# 1. 檢查介面狀態
 show ip interface brief
 
-# 2. 检查路由表
+# 2. 檢查路由表
 show ip route 10.10.0.0
 
-# 3. 检查 ACL
+# 3. 檢查 ACL
 show ip access-lists
 
-# 4. 测试连通性
+# 4. 測試連通性
 ping 192.168.1.1
 ```
 
-### 问题 2: 路由冲突
+### 問題 2: 路由衝突
 
-**解决方案**:
-- 检查 Administrative Distance 设置
-- 确保管理网络路由的 AD 值较高 (250)
-- 使用 `show ip route 10.10.0.0` 查看当前活动路由
+**解決方案**:
+- 檢查 Administrative Distance 設定
+- 確保管理網路路由的 AD 值較高 (250)
+- 使用 `show ip route 10.10.0.0` 查看目前活動路由
 
-### 问题 3: ACL 阻止流量
+### 問題 3: ACL 阻止流量
 
-**解决方案**:
+**解決方案**:
 ```bash
-# 查看 ACL 日志
+# 查看 ACL 日誌
 show logging | include MGMT_ACCESS
 
-# 临时禁用 ACL 测试
+# 暫時停用 ACL 測試
 interface GigabitEthernet0/2
  no ip access-group MGMT_ACCESS in
 ```
 
-## 配置文件位置
+## 配置檔案位置
 
 - **Playbook**: `playbooks/s9_isp_mgmt_routing.yml`
 - **Inventory**: `inventory/hosts.yml`
-- **变量**: `group_vars/all.yml`
+- **變數**: `group_vars/all.yml`
 
-## 相关文档
+## 相關文件
 
-- [网络拓扑图](TOPOLOGY_ASCII.txt)
-- [架构文档](ARCHITECTURE.md)
+- [網路拓撲圖](TOPOLOGY_ASCII.txt)
+- [架構文件](ARCHITECTURE.md)
 - [部署指南](README.md)
 
-## 注意事项
+## 注意事項
 
-1. **生产环境**: 在生产环境部署前，请在测试环境充分测试
-2. **备份配置**: 部署前务必备份现有配置
-3. **变更窗口**: 建议在维护窗口期间执行配置变更
-4. **回滚计划**: 准备回滚脚本以便快速恢复
+1. **生產環境**: 在生產環境部署前，請在測試環境充分測試
+2. **備份配置**: 部署前務必備份現有配置
+3. **變更視窗**: 建議在維護視窗期間執行配置變更
+4. **回復計畫**: 準備回復腳本以便快速恢復
 
-## 更新日志
+## 更新日誌
 
-- 2024-12-09: 初始版本 - 添加 ISP 管理网络路由配置
+- 2024-12-09: 初始版本 - 新增 ISP 管理網路路由配置
