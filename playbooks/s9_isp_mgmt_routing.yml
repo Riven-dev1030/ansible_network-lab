@@ -1,16 +1,19 @@
 ---
 # S9 | ISP 管理網路路由配置
 # 目標: 配置 ISP 路由器透過管理網路 (mg) 的流量路由
+# 架構: mg_sw1 和 mg_sw19 為純 L2 交換機，透過 R1/R2 作為網關
 
 - name: 配置 ISP 路由器管理網路路由
   hosts: isp
   gather_facts: no
   vars:
-    # 管理網路配置
+    # 管理網路配置 (純 L2 架構)
     mgmt_network: "192.168.1.0 255.255.255.0"
+
+    # 使用 R1/R2 作為網關 (它們有管理網路介面和內部網路連接)
     mgmt_gateway:
-      ISP1: "192.168.1.1"  # mg_sw1 的網關 IP
-      ISP2: "192.168.1.1"  # mg_sw1 的網關 IP
+      ISP1: "192.168.1.11"  # 透過 R1 作為網關
+      ISP2: "192.168.1.12"  # 透過 R2 作為網關
 
     # ISP 管理介面配置
     mgmt_interfaces:
@@ -18,12 +21,12 @@
         interface: "GigabitEthernet0/2"
         ip: "192.168.1.31"
         netmask: "255.255.255.0"
-        description: "Management Network - mg_sw1"
+        description: "Management Network - via mg_sw1 (L2)"
       ISP2:
         interface: "GigabitEthernet0/2"
         ip: "192.168.1.32"
         netmask: "255.255.255.0"
-        description: "Management Network - mg_sw19"
+        description: "Management Network - via mg_sw19 (L2)"
 
   tasks:
     - name: 配置 ISP 管理網路介面
@@ -94,7 +97,7 @@
     - name: 測試到管理網關的連通性
       cisco.ios.ios_command:
         commands:
-          - ping 192.168.1.1 repeat 5
+          - ping {{ mgmt_gateway[inventory_hostname] }} repeat 5
       register: ping_gateway
 
     - name: 顯示驗證結果
@@ -114,54 +117,58 @@
           - "管理網關連通性測試:"
           - "{{ ping_gateway.stdout_lines }}"
 
-- name: 配置管理交換機 (mg_sw1) 的路由 (如果需要)
-  hosts: hq_switches
-  gather_facts: no
-  tasks:
-    - name: 配置 Layer 3 功能 (如果 mg_sw1 在 inventory 中)
-      cisco.ios.ios_config:
-        lines:
-          - ip routing
-      when: inventory_hostname == 'SW1'
-      ignore_errors: yes
-
-    - name: 配置 VLAN 1 (管理 VLAN) 的 SVI
-      cisco.ios.ios_config:
-        lines:
-          - interface Vlan1
-          - ip address 192.168.1.1 255.255.255.0
-          - no shutdown
-      when: inventory_hostname == 'SW1'
-      ignore_errors: yes
-
-    - name: 配置到 ISP 的靜態路由
-      cisco.ios.ios_config:
-        lines:
-          - ip route 203.0.113.0 255.255.255.252 192.168.1.31
-          - ip route 198.51.100.0 255.255.255.252 192.168.1.32
-        save_when: modified
-      when: inventory_hostname == 'SW1'
-      ignore_errors: yes
-
-- name: 配置 HQ 路由器的管理網路回程路由
+- name: 配置 HQ 路由器的管理網路介面和路由
   hosts: hq_routers
   gather_facts: no
+  vars:
+    # R1 和 R2 的管理網路介面配置
+    r_mgmt_interfaces:
+      R1:
+        interface: "GigabitEthernet0/3"
+        ip: "192.168.1.11"
+        description: "Management Network Interface"
+      R2:
+        interface: "GigabitEthernet0/3"
+        ip: "192.168.1.12"
+        description: "Management Network Interface"
   tasks:
-    - name: 配置到管理網路的靜態路由
+    - name: 配置 R1/R2 管理網路介面
       cisco.ios.ios_config:
         lines:
-          - ip route 192.168.1.0 255.255.255.0 10.10.99.1 250
-        save_when: modified
+          - interface {{ r_mgmt_interfaces[inventory_hostname].interface }}
+          - description "{{ r_mgmt_interfaces[inventory_hostname].description }}"
+          - ip address {{ r_mgmt_interfaces[inventory_hostname].ip }} 255.255.255.0
+          - no shutdown
       when: inventory_hostname in ['R1', 'R2']
 
-    - name: 驗證路由配置
+    - name: 配置 R1/R2 上的 Proxy ARP (讓管理網路可以透過此介面路由)
+      cisco.ios.ios_config:
+        lines:
+          - interface {{ r_mgmt_interfaces[inventory_hostname].interface }}
+          - ip proxy-arp
+      when: inventory_hostname in ['R1', 'R2']
+      ignore_errors: yes
+
+    - name: 驗證管理網路介面配置
       cisco.ios.ios_command:
         commands:
-          - show ip route 192.168.1.0
-      register: mgmt_route
+          - show ip interface brief | include {{ r_mgmt_interfaces[inventory_hostname].interface }}
+      register: mgmt_interface
+      when: inventory_hostname in ['R1', 'R2']
 
-    - name: 顯示路由資訊
+    - name: 驗證路由表
+      cisco.ios.ios_command:
+        commands:
+          - show ip route connected
+      register: mgmt_route
+      when: inventory_hostname in ['R1', 'R2']
+
+    - name: 顯示配置資訊
       debug:
         msg:
-          - "{{ inventory_hostname }} 到管理網路的路由:"
+          - "{{ inventory_hostname }} 管理網路介面狀態:"
+          - "{{ mgmt_interface.stdout_lines }}"
+          - ""
+          - "連接的網路:"
           - "{{ mgmt_route.stdout_lines }}"
+      when: inventory_hostname in ['R1', 'R2']

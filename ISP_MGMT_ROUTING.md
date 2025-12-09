@@ -4,28 +4,37 @@
 
 本文檔說明如何配置 ISP 路由器，使流量能夠透過管理網路 (mg) 進行路由。
 
+**架構說明**: mg_sw1 和 mg_sw19 為純 Layer 2 交換機（無 IP 位址），透過 R1/R2 作為網關。
+
 ## 網路拓撲
 
 ```
           Internet (Net)
                 │
-          ┌─────┴─────┐
-          │  mg_sw1   │ (192.168.1.1)
-          │  (e0/1)   │
-          └─────┬─────┘
-                │ (e0/0)
-          ┌─────┴────────────────┐
-          │                      │
-    ┌─────▼──────┐         ┌─────▼──────┐
-    │   ISP1     │         │   ISP2     │
-    │192.168.1.31│         │192.168.1.32│
-    │  (Gi0/2)   │         │  (Gi0/2)   │
-    └─────┬──────┘         └─────┬──────┘
-          │                      │
-    ┌─────▼──────┐         ┌─────▼──────┐
-    │     R1     │         │     R2     │
-    │  (Gi0/1)   │         │  (Gi0/1)   │
-    └────────────┘         └────────────┘
+          ┌─────┴─────────────┐
+          │                   │
+    mg_sw1 (L2)          mg_sw19 (L2)  ← 純 L2 交換機
+       │                      │
+       │   管理網路 192.168.1.0/24 (同一個 L2 域)
+       │                      │
+    ┌──┴────┐              ┌──┴────┐
+    │ ISP1  │              │ ISP2  │
+    │ .31   │              │ .32   │
+    │(Gi0/2)│              │(Gi0/2)│
+    └───────┘              └───────┘
+                │
+         (管理網路 L2)
+                │
+    ┌───────────┴───────────┐
+    │                       │
+┌───▼────┐              ┌───▼────┐
+│   R1   │◄────生產─────►│   R2   │
+│  .11   │   網路連接    │  .12   │
+│ (Gi0/3)│  (Gi0/0-1)    │ (Gi0/3)│
+└────┬───┘              └────┬───┘
+     │                       │
+  內部網路              內部網路
+10.10.x.x            10.10.x.x
 ```
 
 ## 管理網路配置
@@ -33,18 +42,22 @@
 ### 網路位址規劃
 
 - **管理網路**: 192.168.1.0/24
-- **管理網關**: 192.168.1.1 (mg_sw1)
-- **ISP1 管理 IP**: 192.168.1.31
-- **ISP2 管理 IP**: 192.168.1.32
-- **其他設備**: 192.168.1.11-42
+- **L2 交換機**: mg_sw1, mg_sw19 (無 IP，純 L2 轉發)
+- **ISP1 管理 IP**: 192.168.1.31 → 網關: 192.168.1.11 (R1)
+- **ISP2 管理 IP**: 192.168.1.32 → 網關: 192.168.1.12 (R2)
+- **R1 管理 IP**: 192.168.1.11 (Gi0/3)
+- **R2 管理 IP**: 192.168.1.12 (Gi0/3)
+- **其他設備**: 192.168.1.13-30
 
 ## 配置目標
 
 實現以下路由需求：
 
-1. **ISP → 內部網路**: ISP 路由器能夠透過管理網路存取內部網路 (10.10.0.0/16, 10.110.0.0/16)
-2. **內部網路 → ISP**: 內部設備能夠透過管理網路存取 ISP 路由器
-3. **流量隔離**: 生產流量和管理流量分離
+1. **配置 R1/R2 管理網路介面**: 在 Gi0/3 上配置管理網路 IP
+2. **ISP → 內部網路**: ISP 路由器透過 R1/R2 作為網關存取內部網路 (10.10.0.0/16, 10.110.0.0/16)
+3. **內部網路 → ISP**: 內部設備透過 R1/R2 存取 ISP 路由器
+4. **流量隔離**: 生產流量（Gi0/0-1）和管理流量（Gi0/3）使用不同介面
+5. **L2 架構**: mg_sw1 和 mg_sw19 無需配置，純 L2 轉發
 
 ## 配置步驟
 
@@ -62,20 +75,46 @@ ansible-playbook playbooks/deploy_all.yml
 
 ### 方法 2: 手動配置
 
-#### 在 ISP1 上配置
+#### 步驟 1: 配置 R1 管理網路介面
+
+```cisco
+! 在 R1 上配置
+interface GigabitEthernet0/3
+ description Management Network Interface
+ ip address 192.168.1.11 255.255.255.0
+ no shutdown
+exit
+
+write memory
+```
+
+#### 步驟 2: 配置 R2 管理網路介面
+
+```cisco
+! 在 R2 上配置
+interface GigabitEthernet0/3
+ description Management Network Interface
+ ip address 192.168.1.12 255.255.255.0
+ no shutdown
+exit
+
+write memory
+```
+
+#### 步驟 3: 配置 ISP1
 
 ```cisco
 ! 1. 配置管理網路介面
 interface GigabitEthernet0/2
- description Management Network - mg_sw1
+ description Management Network - via mg_sw1 (L2)
  ip address 192.168.1.31 255.255.255.0
  no shutdown
 exit
 
-! 2. 配置到內部網路的靜態路由 (較低優先權)
+! 2. 配置到內部網路的靜態路由 (透過 R1)
 ! Administrative Distance = 250 (低於 BGP 的 200/20)
-ip route 10.10.0.0 255.255.0.0 192.168.1.1 250
-ip route 10.110.0.0 255.255.0.0 192.168.1.1 250
+ip route 10.10.0.0 255.255.0.0 192.168.1.11 250
+ip route 10.110.0.0 255.255.0.0 192.168.1.11 250
 
 ! 3. (可選) 配置存取控制
 ip access-list standard MGMT_ACCESS
@@ -93,19 +132,19 @@ exit
 write memory
 ```
 
-#### 在 ISP2 上配置
+#### 步驟 4: 配置 ISP2
 
 ```cisco
 ! 1. 配置管理網路介面
 interface GigabitEthernet0/2
- description Management Network - mg_sw19
+ description Management Network - via mg_sw19 (L2)
  ip address 192.168.1.32 255.255.255.0
  no shutdown
 exit
 
-! 2. 配置到內部網路的靜態路由
-ip route 10.10.0.0 255.255.0.0 192.168.1.1 250
-ip route 10.110.0.0 255.255.0.0 192.168.1.1 250
+! 2. 配置到內部網路的靜態路由 (透過 R2)
+ip route 10.10.0.0 255.255.0.0 192.168.1.12 250
+ip route 10.110.0.0 255.255.0.0 192.168.1.12 250
 
 ! 3. (可選) 配置存取控制
 ip access-list standard MGMT_ACCESS
@@ -123,43 +162,26 @@ exit
 write memory
 ```
 
-#### 在管理交換機 (mg_sw1/SW1) 上配置 (如果需要)
-
-```cisco
-! 如果 mg_sw1 是 Layer 3 交換機
-ip routing
-
-interface Vlan1
- ip address 192.168.1.1 255.255.255.0
- no shutdown
-exit
-
-! 配置到 ISP 公網的靜態路由
-ip route 203.0.113.0 255.255.255.252 192.168.1.31
-ip route 198.51.100.0 255.255.255.252 192.168.1.32
-
-! 配置到內部網路的路由 (透過 R1/R2)
-ip route 10.10.0.0 255.255.0.0 192.168.1.11
-ip route 10.110.0.0 255.255.0.0 192.168.1.11
-
-write memory
-```
-
-#### 在 HQ 路由器 (R1/R2) 上配置回程路由
-
-```cisco
-! 在 R1 和 R2 上配置
-ip route 192.168.1.0 255.255.255.0 10.10.99.1 250
-
-write memory
-```
+**注意**: mg_sw1 和 mg_sw19 為純 L2 交換機，無需任何配置。
 
 ## 驗證配置
 
-### 1. 檢查 ISP 介面狀態
+### 1. 檢查 R1/R2 管理介面狀態
 
 ```bash
-# 在 ISP1/ISP2 上
+# 在 R1/R2 上
+show ip interface brief | include GigabitEthernet0/3
+```
+
+預期輸出：
+```
+GigabitEthernet0/3     192.168.1.11    YES manual up                    up
+```
+
+### 2. 檢查 ISP 介面狀態
+
+```bash
+# 在 ISP1 上
 show ip interface brief | include GigabitEthernet0/2
 ```
 
@@ -168,37 +190,38 @@ show ip interface brief | include GigabitEthernet0/2
 GigabitEthernet0/2     192.168.1.31    YES manual up                    up
 ```
 
-### 2. 檢查路由表
+### 3. 檢查路由表
 
 ```bash
-# 在 ISP1/ISP2 上
+# 在 ISP1 上
 show ip route | include 10.10.0.0|10.110.0.0|192.168.1.0
 ```
 
 預期輸出：
 ```
-S    10.10.0.0/16 [250/0] via 192.168.1.1
-S    10.110.0.0/16 [250/0] via 192.168.1.1
+S    10.10.0.0/16 [250/0] via 192.168.1.11
+S    10.110.0.0/16 [250/0] via 192.168.1.11
 C    192.168.1.0/24 is directly connected, GigabitEthernet0/2
 ```
 
-### 3. 測試連通性
+### 4. 測試連通性
 
 ```bash
-# 從 ISP1 ping 管理網關
-ping 192.168.1.1
+# 從 ISP1 ping R1 (管理網關)
+ping 192.168.1.11
 
-# 從 ISP1 ping 內部設備 (透過管理網路)
-ping 192.168.1.11 source 192.168.1.31
+# 從 ISP1 ping R2
+ping 192.168.1.12 source 192.168.1.31
 
 # 從 ISP1 測試到內部網路的路由
+ping 10.10.10.1 source 192.168.1.31
 traceroute 10.10.10.1 source 192.168.1.31
 ```
 
-### 4. 使用 Ansible 驗證
+### 5. 使用 Ansible 驗證
 
 ```bash
-ansible-playbook playbooks/s9_isp_mgmt_routing.yml --tags verify
+ansible-playbook playbooks/s9_isp_mgmt_routing.yml
 ```
 
 ## 路由優先權說明
@@ -220,20 +243,30 @@ ansible-playbook playbooks/s9_isp_mgmt_routing.yml --tags verify
 ### 場景 1: 正常生產流量 (透過 BGP)
 
 ```
-Client → R1/R2 → ISP1/ISP2 (via Gi0/1) → Internet
+Client (10.10.10.x) → R1/R2 (Gi0/0-1) → ISP1/ISP2 (Gi0/1) → Internet
 ```
 
-### 場景 2: 管理流量 (透過管理網路)
+### 場景 2: 管理流量 (透過管理網路 L2)
 
 ```
-ISP1 (Gi0/2) → mg_sw1 → 內部設備 (192.168.1.x)
+ISP1 (Gi0/2, .31) → mg_sw1 (L2) → R1 (Gi0/3, .11) → 內部設備
+ISP2 (Gi0/2, .32) → mg_sw19 (L2) → R2 (Gi0/3, .12) → 內部設備
 ```
 
 ### 場景 3: 生產路由故障時的備份路由
 
 ```
-ISP1 (Gi0/2) → mg_sw1 → R1/R2 → 內部網路 (10.10.x.x)
+ISP1 (Gi0/2, .31) → mg_sw1 (L2) → R1 (Gi0/3, .11) → R1 內部介面 → 內部網路 (10.10.x.x)
 ```
+
+### 關鍵點
+
+1. **L2 轉發**: mg_sw1 和 mg_sw19 只做 L2 轉發，不參與路由決策
+2. **多條路徑**: ISP1 可以透過 mg_sw1 → R1，ISP2 透過 mg_sw19 → R2
+3. **介面隔離**:
+   - Gi0/0-1: 生產 BGP 流量
+   - Gi0/2: 管理網路介面 (ISP)
+   - Gi0/3: 管理網路介面 (R1/R2)
 
 ## 安全考量
 
