@@ -9,16 +9,16 @@
     - name: 配置 Underlay 介面到 BR1
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/1
           - description "Underlay to BR1"
           - ip address 100.64.1.1 255.255.255.252
           - no shutdown
+        parents:
+          - interface Ethernet0/1
       register: result
 
     - name: 配置 GRE Tunnel 0
       cisco.ios.ios_config:
         lines:
-          - interface Tunnel0
           - description "GRE Tunnel to BR1"
           - ip address 172.16.10.1 255.255.255.252
           - tunnel source 100.64.1.1
@@ -27,6 +27,8 @@
           - ip ospf 10 area 10
           - ip ospf message-digest-key 1 md5 YourPassword123
           - no shutdown
+        parents:
+          - interface Tunnel0
 
     - name: 配置 OSPF Area 10 MD5 認證
       cisco.ios.ios_config:
@@ -50,15 +52,15 @@
     - name: 配置 Underlay 介面到 R3
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/1
           - description "Underlay to R3"
           - ip address 100.64.1.2 255.255.255.252
           - no shutdown
+        parents:
+          - interface Ethernet0/1
 
     - name: 配置 GRE Tunnel 0
       cisco.ios.ios_config:
         lines:
-          - interface Tunnel0
           - description "GRE Tunnel to R3"
           - ip address 172.16.10.2 255.255.255.252
           - tunnel source 100.64.1.2
@@ -67,6 +69,8 @@
           - ip ospf 10 area 10
           - ip ospf message-digest-key 1 md5 YourPassword123
           - no shutdown
+        parents:
+          - interface Tunnel0
 
     - name: 配置 OSPF Process 10 Area 10
       cisco.ios.ios_config:

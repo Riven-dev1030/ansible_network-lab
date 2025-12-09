@@ -19,8 +19,9 @@
     - name: 應用 ACL 到 DMZ 介面 (入方向)
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.50
           - ip access-group DMZ-TO-INTERNAL in
+        parents:
+          - interface Ethernet0/0.50
 
     - name: 創建 ACL - 內部到 DMZ (僅允許 HTTP/HTTPS)
       cisco.ios.ios_config:
@@ -37,8 +38,9 @@
     - name: 應用內部 ACL
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.10
           - ip access-group INTERNAL-TO-DMZ in
+        parents:
+          - interface Ethernet0/0.10
         save_when: modified
 
     - name: 顯示說明
@@ -65,14 +67,16 @@
     - name: 配置 NAT inside 介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.50
           - ip nat inside
+        parents:
+          - interface Ethernet0/0.50
 
     - name: 配置 NAT outside 介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/1
           - ip nat outside
+        parents:
+          - interface Ethernet0/1
 
     - name: 創建外部訪問 ACL (僅允許 80/443)
       cisco.ios.ios_config:
@@ -86,8 +90,9 @@
     - name: 應用 ACL 到外部介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/1
           - ip access-group OUTSIDE-TO-DMZ in
+        parents:
+          - interface Ethernet0/1
         save_when: modified
 
     - name: 顯示說明

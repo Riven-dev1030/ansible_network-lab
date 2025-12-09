@@ -86,40 +86,44 @@
     - name: 配置 VLAN 10 子介面與 HSRP
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.10
           - encapsulation dot1Q 10
           - ip address 10.10.10.1 255.255.255.0
           - standby 10 ip 10.10.10.254
           - standby 10 priority 110
           - standby 10 preempt
+        parents:
+          - interface Ethernet0/0.10
 
     - name: 配置 VLAN 20 子介面與 HSRP
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.20
           - encapsulation dot1Q 20
           - ip address 10.10.20.1 255.255.255.0
           - standby 20 ip 10.10.20.254
           - standby 20 priority 110
           - standby 20 preempt
+        parents:
+          - interface Ethernet0/0.20
 
     - name: 配置 VLAN 60 子介面與 HSRP
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.60
           - encapsulation dot1Q 60
           - ip address 10.10.60.1 255.255.255.0
           - standby 60 ip 10.10.60.254
           - standby 60 priority 110
           - standby 60 preempt
+        parents:
+          - interface Ethernet0/0.60
 
     - name: 配置 VLAN 99 Transit 子介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.99
           - encapsulation dot1Q 99
           - ip address 10.10.99.1 255.255.255.0
           - description "Transit VLAN for OSPF Area 0"
+        parents:
+          - interface Ethernet0/0.99
 
 - name: 配置 R2 子介面與 HSRP
   hosts: R2
@@ -142,40 +146,44 @@
     - name: 配置 VLAN 10 子介面與 HSRP (Standby)
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.10
           - encapsulation dot1Q 10
           - ip address 10.10.10.2 255.255.255.0
           - standby 10 ip 10.10.10.254
           - standby 10 priority 100
           - standby 10 preempt
+        parents:
+          - interface Ethernet0/0.10
 
     - name: 配置 VLAN 20 子介面與 HSRP (Standby)
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.20
           - encapsulation dot1Q 20
           - ip address 10.10.20.2 255.255.255.0
           - standby 20 ip 10.10.20.254
           - standby 20 priority 100
           - standby 20 preempt
+        parents:
+          - interface Ethernet0/0.20
 
     - name: 配置 VLAN 60 子介面與 HSRP (Standby)
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.60
           - encapsulation dot1Q 60
           - ip address 10.10.60.2 255.255.255.0
           - standby 60 ip 10.10.60.254
           - standby 60 priority 100
           - standby 60 preempt
+        parents:
+          - interface Ethernet0/0.60
 
     - name: 配置 VLAN 99 Transit 子介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.99
           - encapsulation dot1Q 99
           - ip address 10.10.99.2 255.255.255.0
           - description "Transit VLAN for OSPF Area 0"
+        parents:
+          - interface Ethernet0/0.99
 
 - name: 配置 R3 子介面 (Transit VLAN)
   hosts: R3
@@ -190,10 +198,11 @@
     - name: 配置 VLAN 99 Transit 子介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.99
           - encapsulation dot1Q 99
           - ip address 10.10.99.3 255.255.255.0
           - description "Transit VLAN for OSPF Area 0"
+        parents:
+          - interface Ethernet0/0.99
 
     - name: 啟用 IP Routing
       cisco.ios.ios_config:

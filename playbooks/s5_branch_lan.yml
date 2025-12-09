@@ -52,10 +52,11 @@
     - name: 配置 VLAN 110 子介面
       cisco.ios.ios_config:
         lines:
-          - interface Ethernet0/0.110
           - encapsulation dot1Q 110
           - ip address 10.110.10.254 255.255.255.0
           - description "Branch LAN Gateway"
+        parents:
+          - interface Ethernet0/0.110
 
     - name: 將分公司網段加入 OSPF Area 10
       cisco.ios.ios_config:
