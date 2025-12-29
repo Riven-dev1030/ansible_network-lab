@@ -17,6 +17,7 @@ graph TB
 
         R3["R3 (DMZ/ABR)<br/>100.64.1.1<br/>172.16.10.1"]
         SW1["SW1<br/>Access Switch"]
+        BASTION["🔐 BASTION<br/>192.168.1.15<br/>Bastion Router"]
 
         subgraph VLANs["HQ VLANs"]
             VLAN10["VLAN 10 (User)<br/>10.10.10.0/24<br/>VIP: .254"]
@@ -47,11 +48,15 @@ graph TB
     R1 <-->|"VLAN 99<br/>Transit"| SW1
     R2 <-->|"VLAN 99<br/>Transit"| SW1
     R3 <-->|"VLAN 99<br/>Transit"| SW1
+    BASTION <-->|"VLAN 99<br/>Transit"| SW1
 
     SW1 --> VLAN10
     SW1 --> VLAN20
     SW1 --> VLAN60
     R3 --> VLAN50
+
+    BASTION -.->|"VLAN 10/20<br/>50/60/99/110<br/>Sub-interfaces"| VLAN10
+    BASTION -.->|"MGMT入口<br/>192.168.1.15"| R1
 
     R1 -.->|"HSRP"| R2
 
@@ -162,6 +167,12 @@ graph LR
 |------|---------|---------|------|
 | **ISP1** | 192.168.1.31 | AS 65001 | eBGP Peer with R1 |
 | **ISP2** | 192.168.1.32 | AS 65002 | eBGP Peer with R2 |
+
+### 跳板機 (Bastion)
+
+| 設備 | 管理 IP | 角色 | 功能 |
+|------|---------|------|------|
+| **BASTION** | 192.168.1.15 | Bastion Router | - MGMT 網段入口<br/>- 所有 VLAN 連接<br/>- 訪問控制 ACL<br/>- SSH 堡壘 |
 
 ### 伺服器
 
@@ -409,25 +420,67 @@ graph TB
     style Log_VLAN fill:#ccffcc
 ```
 
+## 跳板機 (Jump Host)
+
+跳板機的作用是讓 Ansible 能夠從外部網段連接到 MGMT 網段（192.168.1.0/24）。
+
+| 設備 | 管理 IP | 角色 |
+|------|---------|------|
+| **BASTION** | 192.168.1.100 | Jump Host - MGMT 網段入口 |
+
+### Ansible 配置範例
+
+在 `ansible.cfg` 中設置：
+
+```ini
+[defaults]
+bastion_host = 192.168.1.100
+bastion_user = admin
+```
+
+或在 `inventory/hosts.yml` 中設置：
+
+```yaml
+all:
+  vars:
+    ansible_bastion_host: 192.168.1.100
+    ansible_bastion_user: admin
+```
+
+這樣 Ansible 會自動透過跳板機連接到所有設備。
+
+---
+
 ## 總結
 
 這個 Ansible Network Lab 實現了一個完整的企業級網路架構，包含：
 
 ### ✅ 核心特性
 - **高可用性**: HSRP、雙 ISP 連接
-- **安全隔離**: DMZ、ACL、VLAN 隔離
+- **安全隔離**: DMZ、ACL、VLAN 隔離、堡壘主機
 - **多區域路由**: OSPF (Area 0/10/50) + BGP
 - **VPN 連接**: GRE Tunnel with MD5 認證
+- **堡壘主機**: BASTION Router 作為 MGMT 網段入口
 - **自動化部署**: Ansible 完整自動化配置
 
 ### 📊 設備統計
-- **路由器**: 5 台 (R1, R2, R3, BR1, ISP1, ISP2)
+- **路由器**: 5 台 (R1, R2, R3, BR1, ISP1, ISP2) + 1 台跳板機
 - **交換機**: 2 台 (SW1, BR-SW)
 - **伺服器**: 1 台 (WebSrv)
-- **VLANs**: 6 個
-- **總計**: 10 台設備
+- **VLANs**: 6 個 + MGMT 網段
+- **總計**: 10 台設備 + Jump Host
 
 ### 🔧 Ansible 管理
 - **Playbooks**: 9 個階段 (S0-S8)
-- **群組**: 5 個邏輯群組 (hq, branch, isp, servers, 設備類型)
+  - S0: 準備與基線
+  - S1: HQ VLAN & HSRP
+  - S2: DMZ & R3
+  - S3: OSPF Summary
+  - S4: GRE Tunnel
+  - S5: Branch LAN
+  - S6: eBGP
+  - S7: NAT & ACL
+  - S8: Observability
+- **群組**: 5 個邏輯群組 (hq, branch, bastion, isp, servers, 設備類型)
 - **變數**: 集中管理的網路規劃和配置
+- **Jump Host**: BASTION (192.168.1.100) 用於遠端訪問
