@@ -39,3 +39,5 @@ backups/
 # 敏感資訊
 credentials.yml
 secrets.yml
+inventory/hosts.yml
+!inventory/hosts.yml.example
