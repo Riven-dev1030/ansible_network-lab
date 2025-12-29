@@ -147,9 +147,11 @@ ansible-playbook playbooks/reset_network.yml
 ```
 
 **重置功能說明：**
-- ✅ **保留項目**：VTY Lines (SSH/Telnet 管理)、Console 設定、認證資訊
-- ❌ **清除項目**：所有路由協定、介面配置、VLAN、ACL、NAT、HSRP、日誌、Hostname 等
+- ✅ **保留項目 (設備上)**：VTY Lines (SSH/Telnet 管理)、Console 設定、認證資訊
+- ✅ **保留項目 (本地文件)**：inventory/hosts.yml、group_vars/、所有 playbook 文件等
+- ❌ **清除項目 (僅設備配置)**：所有路由協定、介面配置、VLAN、ACL、NAT、HSRP、日誌、Hostname 等
 - 🔄 **用途**：將網路設備恢復到初始狀態，可重新進行完整部署
+- 📌 **重要**：此操作只修改網路設備配置，不會修改任何本地 Ansible 專案文件
 
 ## 📂 項目結構
 

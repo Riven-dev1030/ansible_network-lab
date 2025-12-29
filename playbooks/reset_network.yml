@@ -4,12 +4,18 @@
 #
 # ⚠️  警告: 此操作會清除所有網路配置！
 #
-# 保留項目:
+# 保留項目 (設備上):
 #   - VTY Lines (SSH/Telnet 遠端管理)
 #   - Console Line 基本設定
 #   - 認證資訊 (密碼)
 #
-# 清除項目:
+# 保留項目 (本地 Ansible 專案文件):
+#   - inventory/hosts.yml (設備清單和管理 IP)
+#   - group_vars/ (所有變數文件)
+#   - playbooks/ (所有 playbook 文件)
+#   - 其他專案配置文件
+#
+# 清除項目 (僅設備配置):
 #   - Hostname
 #   - 所有路由協定 (OSPF, BGP)
 #   - 所有介面配置 (子介面, Tunnel, IP)
@@ -17,6 +23,10 @@
 #   - ACL, NAT, 靜態路由
 #   - HSRP, 日誌, SNMP
 #   - 其他功能性配置
+#
+# 📌 重要說明:
+#   此 playbook 只會修改網路設備上的配置
+#   不會修改任何本地 Ansible 專案文件
 
 - name: "階段 1 | 停止路由協定"
   hosts: cisco_devices
