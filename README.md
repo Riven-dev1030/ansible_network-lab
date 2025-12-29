@@ -96,6 +96,7 @@ ansible all -m cisco.ios.ios_command -a "commands='show version'" --one-line
 2. 分階段部署 (逐步執行)
 3. 僅驗證 (不部署)
 4. 檢查連接
+5. 重置網路 (清除所有配置)
 
 ### 方法 2: 手動執行 Playbooks
 
@@ -139,6 +140,17 @@ ansible-playbook playbooks/s8_observability.yml
 ansible-playbook playbooks/verify_deployment.yml
 ```
 
+#### 重置網路
+```bash
+# 清除所有配置，回到初始狀態（保留 SSH/Telnet 管理連接）
+ansible-playbook playbooks/reset_network.yml
+```
+
+**重置功能說明：**
+- ✅ **保留項目**：VTY Lines (SSH/Telnet 管理)、Console 設定、認證資訊
+- ❌ **清除項目**：所有路由協定、介面配置、VLAN、ACL、NAT、HSRP、日誌、Hostname 等
+- 🔄 **用途**：將網路設備恢復到初始狀態，可重新進行完整部署
+
 ## 📂 項目結構
 
 ```
@@ -169,7 +181,8 @@ ansible_network-lab/
 │   ├── s6_ebgp.yml             # S6: BGP
 │   ├── s7_nat_acl.yml          # S7: NAT/ACL
 │   ├── s8_observability.yml    # S8: 日誌
-│   └── verify_deployment.yml   # 驗證腳本
+│   ├── verify_deployment.yml   # 驗證腳本
+│   └── reset_network.yml       # 網路重置
 │
 └── roles/                       # Ansible Roles (未來擴展)
 ```

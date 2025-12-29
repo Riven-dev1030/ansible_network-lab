@@ -26,9 +26,10 @@ echo "  1) 完整部署 (S0-S8 全部階段)"
 echo "  2) 分階段部署 (逐步執行)"
 echo "  3) 僅驗證 (不部署)"
 echo "  4) 檢查連接"
+echo "  5) 🔄 重置網路 (清除所有配置)"
 echo "  0) 退出"
 echo ""
-read -p "請輸入選項 [0-4]: " choice
+read -p "請輸入選項 [0-5]: " choice
 
 case $choice in
     1)
@@ -79,6 +80,42 @@ case $choice in
         echo "🔌 檢查設備連接..."
         echo ""
         ansible all -m cisco.ios.ios_command -a "commands='show version'" --one-line
+        ;;
+    5)
+        echo ""
+        echo "⚠️  警告：網路重置操作"
+        echo "════════════════════════════════════════════════════════"
+        echo ""
+        echo "此操作將清除所有網路配置，包括："
+        echo "  • 所有路由協定 (OSPF, BGP)"
+        echo "  • 所有介面配置 (子介面, Tunnel, IP)"
+        echo "  • 所有 VLAN (保留 VLAN 1)"
+        echo "  • ACL, NAT, 靜態路由"
+        echo "  • HSRP, 日誌, SNMP"
+        echo "  • Hostname 和其他基本設定"
+        echo ""
+        echo "保留項目："
+        echo "  • VTY Lines (SSH/Telnet 管理連接)"
+        echo "  • Console Line 設定"
+        echo "  • 認證資訊 (密碼)"
+        echo ""
+        echo "════════════════════════════════════════════════════════"
+        echo ""
+        read -p "確定要重置所有設備嗎？(yes/no): " confirm
+        if [ "$confirm" = "yes" ]; then
+            echo ""
+            echo "🔄 開始重置網路..."
+            echo ""
+            ansible-playbook playbooks/reset_network.yml
+            echo ""
+            echo "✅ 重置完成！"
+            echo ""
+            echo "下一步："
+            echo "  重新執行此腳本並選擇「完整部署」來恢復網路配置"
+        else
+            echo ""
+            echo "❌ 重置已取消"
+        fi
         ;;
     0)
         echo "再見！"

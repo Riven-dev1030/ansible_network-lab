@@ -1,0 +1,495 @@
+---
+# 網路重置 Playbook - 完全重置所有配置
+# 目標: 清除所有功能配置，僅保留基本 SSH/Telnet 管理連接能力
+#
+# ⚠️  警告: 此操作會清除所有網路配置！
+#
+# 保留項目:
+#   - VTY Lines (SSH/Telnet 遠端管理)
+#   - Console Line 基本設定
+#   - 認證資訊 (密碼)
+#
+# 清除項目:
+#   - Hostname
+#   - 所有路由協定 (OSPF, BGP)
+#   - 所有介面配置 (子介面, Tunnel, IP)
+#   - 所有 VLAN (保留 VLAN 1)
+#   - ACL, NAT, 靜態路由
+#   - HSRP, 日誌, SNMP
+#   - 其他功能性配置
+
+- name: "階段 1 | 停止路由協定"
+  hosts: cisco_devices
+  gather_facts: no
+  tasks:
+    - name: 移除 BGP (R1, R2)
+      cisco.ios.ios_config:
+        lines:
+          - no router bgp 65010
+      ignore_errors: yes
+      when: inventory_hostname in ['R1', 'R2']
+
+    - name: 移除 BGP (ISP1)
+      cisco.ios.ios_config:
+        lines:
+          - no router bgp 65001
+      ignore_errors: yes
+      when: inventory_hostname == 'ISP1'
+
+    - name: 移除 BGP (ISP2)
+      cisco.ios.ios_config:
+        lines:
+          - no router bgp 65002
+      ignore_errors: yes
+      when: inventory_hostname == 'ISP2'
+
+    - name: 移除 OSPF (所有路由器)
+      cisco.ios.ios_config:
+        lines:
+          - no router ospf 10
+      ignore_errors: yes
+      when: inventory_hostname in groups['hq_routers'] or inventory_hostname in groups['branch_routers']
+
+    - name: 顯示進度
+      debug:
+        msg: "✅ {{ inventory_hostname }} - 路由協定已移除"
+
+- name: "階段 2 | 清除 ACL 和 NAT"
+  hosts: cisco_devices
+  gather_facts: no
+  tasks:
+    - name: 移除 ACL (R3)
+      cisco.ios.ios_config:
+        lines:
+          - no ip access-list extended DMZ-TO-INTERNAL
+          - no ip access-list extended INTERNAL-TO-DMZ
+      ignore_errors: yes
+      when: inventory_hostname == 'R3'
+
+    - name: 移除 ACL (R1)
+      cisco.ios.ios_config:
+        lines:
+          - no ip access-list extended OUTSIDE-TO-DMZ
+      ignore_errors: yes
+      when: inventory_hostname == 'R1'
+
+    - name: 移除 NAT 配置 (R1)
+      cisco.ios.ios_config:
+        lines:
+          - no ip nat inside source static tcp 10.10.50.10 80 203.0.113.10 80
+          - no ip nat inside source static tcp 10.10.50.10 443 203.0.113.10 443
+      ignore_errors: yes
+      when: inventory_hostname == 'R1'
+
+    - name: 顯示進度
+      debug:
+        msg: "✅ {{ inventory_hostname }} - ACL/NAT 已清除"
+
+- name: "階段 3 | 清除子介面和 Tunnel"
+  hosts: cisco_devices
+  gather_facts: no
+  tasks:
+    - name: 移除 GRE Tunnel (R3, BR1)
+      cisco.ios.ios_config:
+        lines:
+          - no interface Tunnel0
+      ignore_errors: yes
+      when: inventory_hostname in ['R3', 'BR1']
+
+    - name: 移除 R1 子介面
+      cisco.ios.ios_config:
+        lines:
+          - no interface Ethernet0/0.10
+          - no interface Ethernet0/0.20
+          - no interface Ethernet0/0.60
+          - no interface Ethernet0/0.99
+      ignore_errors: yes
+      when: inventory_hostname == 'R1'
+
+    - name: 移除 R2 子介面
+      cisco.ios.ios_config:
+        lines:
+          - no interface Ethernet0/0.10
+          - no interface Ethernet0/0.20
+          - no interface Ethernet0/0.60
+          - no interface Ethernet0/0.99
+      ignore_errors: yes
+      when: inventory_hostname == 'R2'
+
+    - name: 移除 R3 子介面
+      cisco.ios.ios_config:
+        lines:
+          - no interface Ethernet0/0.50
+          - no interface Ethernet0/0.99
+      ignore_errors: yes
+      when: inventory_hostname == 'R3'
+
+    - name: 移除 BR1 子介面
+      cisco.ios.ios_config:
+        lines:
+          - no interface Ethernet0/0.110
+      ignore_errors: yes
+      when: inventory_hostname == 'BR1'
+
+    - name: 顯示進度
+      debug:
+        msg: "✅ {{ inventory_hostname }} - 子介面和 Tunnel 已移除"
+
+- name: "階段 4 | 清理實體介面配置 (路由器)"
+  hosts: hq_routers,branch_routers,isp
+  gather_facts: no
+  tasks:
+    - name: 清理 R1 Ethernet0/0 (Trunk to SW1)
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no ip nat inside
+          - no ip access-group INTERNAL-TO-DMZ in
+          - no shutdown
+        parents:
+          - interface Ethernet0/0
+      ignore_errors: yes
+      when: inventory_hostname == 'R1'
+
+    - name: 清理 R1 Ethernet0/1 (ISP Link)
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no ip nat outside
+          - no ip access-group OUTSIDE-TO-DMZ in
+          - no shutdown
+        parents:
+          - interface Ethernet0/1
+      ignore_errors: yes
+      when: inventory_hostname == 'R1'
+
+    - name: 清理 R2 Ethernet0/0 (Trunk to SW1)
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no shutdown
+        parents:
+          - interface Ethernet0/0
+      ignore_errors: yes
+      when: inventory_hostname == 'R2'
+
+    - name: 清理 R2 Ethernet0/1 (ISP Link)
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no shutdown
+        parents:
+          - interface Ethernet0/1
+      ignore_errors: yes
+      when: inventory_hostname == 'R2'
+
+    - name: 清理 R3 Ethernet0/0 (Trunk to SW1)
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no ip access-group DMZ-TO-INTERNAL in
+          - no shutdown
+        parents:
+          - interface Ethernet0/0
+      ignore_errors: yes
+      when: inventory_hostname == 'R3'
+
+    - name: 清理 R3 Ethernet0/1 (Underlay to BR1)
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no shutdown
+        parents:
+          - interface Ethernet0/1
+      ignore_errors: yes
+      when: inventory_hostname == 'R3'
+
+    - name: 清理 BR1 Ethernet0/0 (Trunk to BR-SW)
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no shutdown
+        parents:
+          - interface Ethernet0/0
+      ignore_errors: yes
+      when: inventory_hostname == 'BR1'
+
+    - name: 清理 BR1 Ethernet0/1 (Underlay to R3)
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no shutdown
+        parents:
+          - interface Ethernet0/1
+      ignore_errors: yes
+      when: inventory_hostname == 'BR1'
+
+    - name: 清理 ISP1 介面
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no shutdown
+        parents:
+          - interface Ethernet0/1
+      ignore_errors: yes
+      when: inventory_hostname == 'ISP1'
+
+    - name: 清理 ISP2 介面
+      cisco.ios.ios_config:
+        lines:
+          - no description
+          - no ip address
+          - no shutdown
+        parents:
+          - interface Ethernet0/1
+      ignore_errors: yes
+      when: inventory_hostname == 'ISP2'
+
+    - name: 顯示進度
+      debug:
+        msg: "✅ {{ inventory_hostname }} - 實體介面已清理"
+
+- name: "階段 5 | 清除 VLAN 和交換機配置"
+  hosts: SW1,BR-SW
+  gather_facts: no
+  tasks:
+    - name: 移除 SW1 VLAN
+      cisco.ios.ios_config:
+        lines:
+          - no vlan 10
+          - no vlan 20
+          - no vlan 50
+          - no vlan 60
+          - no vlan 99
+      ignore_errors: yes
+      when: inventory_hostname == 'SW1'
+
+    - name: 移除 BR-SW VLAN
+      cisco.ios.ios_config:
+        lines:
+          - no vlan 110
+      ignore_errors: yes
+      when: inventory_hostname == 'BR-SW'
+
+    - name: 重置 SW1 介面 E0/0 (to R1)
+      cisco.ios.ios_config:
+        lines:
+          - no switchport trunk encapsulation
+          - no switchport trunk allowed vlan
+          - switchport mode access
+          - switchport access vlan 1
+          - no description
+          - no shutdown
+        parents:
+          - interface Ethernet0/0
+      ignore_errors: yes
+      when: inventory_hostname == 'SW1'
+
+    - name: 重置 SW1 介面 E0/1 (to R2)
+      cisco.ios.ios_config:
+        lines:
+          - no switchport trunk encapsulation
+          - no switchport trunk allowed vlan
+          - switchport mode access
+          - switchport access vlan 1
+          - no description
+          - no shutdown
+        parents:
+          - interface Ethernet0/1
+      ignore_errors: yes
+      when: inventory_hostname == 'SW1'
+
+    - name: 重置 SW1 介面 E0/2 (to R3)
+      cisco.ios.ios_config:
+        lines:
+          - no switchport trunk encapsulation
+          - no switchport trunk allowed vlan
+          - switchport mode access
+          - switchport access vlan 1
+          - no description
+          - no shutdown
+        parents:
+          - interface Ethernet0/2
+      ignore_errors: yes
+      when: inventory_hostname == 'SW1'
+
+    - name: 重置 SW1 介面 E1/0 (to WebSrv)
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport access vlan 1
+          - no description
+          - no shutdown
+        parents:
+          - interface Ethernet1/0
+      ignore_errors: yes
+      when: inventory_hostname == 'SW1'
+
+    - name: 重置 BR-SW 介面 E0/0 (to BR1)
+      cisco.ios.ios_config:
+        lines:
+          - no switchport trunk encapsulation
+          - no switchport trunk allowed vlan
+          - switchport mode access
+          - switchport access vlan 1
+          - no description
+          - no shutdown
+        parents:
+          - interface Ethernet0/0
+      ignore_errors: yes
+      when: inventory_hostname == 'BR-SW'
+
+    - name: 重置 BR-SW 介面 E0/2 (to Host-BR)
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport access vlan 1
+          - no description
+          - no shutdown
+        parents:
+          - interface Ethernet0/2
+      ignore_errors: yes
+      when: inventory_hostname == 'BR-SW'
+
+    - name: 顯示進度
+      debug:
+        msg: "✅ {{ inventory_hostname }} - VLAN 和介面已重置"
+
+- name: "階段 6 | 清除靜態路由"
+  hosts: hq_routers,branch_routers,isp
+  gather_facts: no
+  tasks:
+    - name: 移除 R1/R2 的靜態路由
+      cisco.ios.ios_config:
+        lines:
+          - no ip route 10.10.0.0 255.255.0.0 Null0
+          - no ip route 10.110.0.0 255.255.0.0 Null0
+          - no ip route 0.0.0.0 0.0.0.0 203.0.113.1
+          - no ip route 0.0.0.0 0.0.0.0 198.51.100.1
+      ignore_errors: yes
+      when: inventory_hostname in ['R1', 'R2']
+
+    - name: 移除 ISP 的靜態路由
+      cisco.ios.ios_config:
+        lines:
+          - no ip route 0.0.0.0 0.0.0.0 Null0
+      ignore_errors: yes
+      when: inventory_hostname in groups['isp']
+
+    - name: 顯示進度
+      debug:
+        msg: "✅ {{ inventory_hostname }} - 靜態路由已移除"
+
+- name: "階段 7 | 清除其他配置 (日誌、SNMP、基本設定)"
+  hosts: cisco_devices
+  gather_facts: no
+  tasks:
+    - name: 清除日誌配置
+      cisco.ios.ios_config:
+        lines:
+          - no logging buffered
+          - no service timestamps log
+          - no service timestamps debug
+          - no logging console
+      ignore_errors: yes
+
+    - name: 清除 SNMP 配置
+      cisco.ios.ios_config:
+        lines:
+          - no snmp-server community public
+          - no snmp-server location
+          - no snmp-server contact
+      ignore_errors: yes
+
+    - name: 清除 hostname (將在 S0 重新設定)
+      cisco.ios.ios_config:
+        lines:
+          - hostname Router
+      ignore_errors: yes
+      when: inventory_hostname not in ['SW1', 'BR-SW']
+
+    - name: 清除 hostname - 交換機
+      cisco.ios.ios_config:
+        lines:
+          - hostname Switch
+      ignore_errors: yes
+      when: inventory_hostname in ['SW1', 'BR-SW']
+
+    - name: 清除 no ip domain-lookup (將在 S0 重新設定)
+      cisco.ios.ios_config:
+        lines:
+          - ip domain-lookup
+      ignore_errors: yes
+
+    - name: 清除 service password-encryption (將在 S0 重新設定)
+      cisco.ios.ios_config:
+        lines:
+          - no service password-encryption
+      ignore_errors: yes
+
+    - name: 清除 ip routing (將在需要時重新啟用)
+      cisco.ios.ios_config:
+        lines:
+          - no ip routing
+      ignore_errors: yes
+      when: inventory_hostname in groups['hq_routers'] or inventory_hostname in groups['branch_routers'] or inventory_hostname in groups['isp']
+
+    - name: 顯示進度
+      debug:
+        msg: "✅ {{ inventory_hostname }} - 其他配置已清除"
+
+- name: "階段 8 | 儲存配置"
+  hosts: cisco_devices
+  gather_facts: no
+  tasks:
+    - name: 儲存重置後的配置
+      cisco.ios.ios_command:
+        commands:
+          - write memory
+      register: save_result
+
+    - name: 確認配置已儲存
+      debug:
+        msg: "✅ {{ inventory_hostname }} - 配置已儲存"
+
+- name: "重置完成報告"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 顯示重置完成訊息
+      debug:
+        msg:
+          - "════════════════════════════════════════"
+          - "  🎉 網路重置完成"
+          - "════════════════════════════════════════"
+          - ""
+          - "✅ 已清除:"
+          - "  • 所有路由協定 (OSPF, BGP)"
+          - "  • 所有介面配置 (子介面, Tunnel, IP)"
+          - "  • 所有 VLAN (保留 VLAN 1)"
+          - "  • ACL, NAT, 靜態路由"
+          - "  • HSRP, 日誌, SNMP"
+          - "  • Hostname 和其他基本設定"
+          - ""
+          - "✅ 已保留:"
+          - "  • VTY Lines (SSH/Telnet 管理)"
+          - "  • Console Line 設定"
+          - "  • 認證資訊 (密碼)"
+          - ""
+          - "📋 下一步 - 重新部署:"
+          - "  方法 1: ./quickstart.sh (選擇完整部署)"
+          - "  方法 2: ansible-playbook playbooks/deploy_all.yml"
+          - ""
+          - "💡 提示:"
+          - "  • 設備已回到初始狀態"
+          - "  • 可以透過原本的管理 IP 繼續連接"
+          - "  • 重新部署將從 S0 階段開始"
