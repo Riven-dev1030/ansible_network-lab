@@ -101,9 +101,9 @@ ssh -L 3306:internal-db:3306 user@bastion
 ### 網路環境
 
 ```
-Ansible 主機:     192.168.56.102
-跳板機:           192.168.213.136
-目標設備網段:     192.168.100.0/24
+Ansible 主機:     外部系統（連接點）
+跳板機:           192.168.1.15
+目標設備網段:     192.168.1.0/24
 ```
 
 ### 已知配置
@@ -126,22 +126,22 @@ Ansible 主機:     192.168.56.102
 ssh -i <私鑰文件> <用戶>@<跳板機IP>
 
 # 範例
-ssh -i temp_rsa_backup(.136).txt root@192.168.213.136
+ssh -i bastion_key.txt root@192.168.1.15
 ```
 
 **參數說明：**
 - `-i`：指定私鑰文件
 - `root`：登入用戶名
-- `192.168.213.136`：跳板機 IP
+- `192.168.1.15`：跳板機 IP
 
 #### 1.2 驗證連接
 
 ```bash
 # 測試連接
-ssh -i temp_rsa_backup(.136).txt root@192.168.213.136 "hostname"
+ssh -i bastion_key.txt root@192.168.1.15 "hostname"
 
 # 預期輸出
-uac
+bastion
 ```
 
 ---
@@ -165,8 +165,8 @@ cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%Y%m%d_%H%M%S)
 #### 2.2 從遠端執行備份
 
 ```bash
-# 從本地 Windows 執行
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+# 從本地系統執行
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%Y%m%d_%H%M%S)"
 ```
 
@@ -174,7 +174,7 @@ ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
 
 ```bash
 # 列出備份文件
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "ls -lh /etc/ssh/sshd_config*"
 
 # 輸出範例
@@ -196,14 +196,14 @@ PermitOpen host:port
 **支持的格式：**
 ```ini
 # 1. 精確指定
-PermitOpen 192.168.100.50:22
+PermitOpen 192.168.1.11:22
 
 # 2. 使用通配符
-PermitOpen 192.168.100.*:22
+PermitOpen 192.168.1.*:22
 
 # 3. 多個端口
-PermitOpen 192.168.100.*:22
-PermitOpen 192.168.100.*:23
+PermitOpen 192.168.1.*:22
+PermitOpen 192.168.1.*:23
 
 # 4. 使用主機名
 PermitOpen server.example.com:22
@@ -215,7 +215,7 @@ PermitOpen none
 #### 3.2 添加配置（方法 1 - Heredoc）
 
 ```bash
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 "cat >> /etc/ssh/sshd_config << 'EOF'
+ssh -i "bastion_key.txt" root@192.168.1.15 "cat >> /etc/ssh/sshd_config << 'EOF'
 
 # ============================================
 # Ansible ProxyCommand 安全配置
@@ -223,11 +223,11 @@ ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 "cat >> /etc/ssh/sshd_co
 # 目的: 限制 TCP 轉發只能到網路設備管理網段
 # ============================================
 
-# 限制轉發目標 - 僅允許到 192.168.100.x 的 SSH
-PermitOpen 192.168.100.*:22
+# 限制轉發目標 - 僅允許到 192.168.1.x 的 SSH
+PermitOpen 192.168.1.*:22
 
 # 如果未來需要支援 Telnet，取消註解以下行：
-# PermitOpen 192.168.100.*:23
+# PermitOpen 192.168.1.*:23
 
 # 安全建議：
 # 1. 定期審查 /var/log/messages 中的轉發日誌
@@ -246,16 +246,16 @@ EOF
 
 ```bash
 # 單行添加
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
-  "echo 'PermitOpen 192.168.100.*:22' >> /etc/ssh/sshd_config"
+ssh -i "bastion_key.txt" root@192.168.1.15 \
+  "echo 'PermitOpen 192.168.1.*:22' >> /etc/ssh/sshd_config"
 ```
 
 #### 3.4 添加配置（方法 3 - 使用 sed）
 
 ```bash
 # 在特定位置插入
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
-  "sed -i '/^AllowTcpForwarding/a PermitOpen 192.168.100.*:22' /etc/ssh/sshd_config"
+ssh -i "bastion_key.txt" root@192.168.1.15 \
+  "sed -i '/^AllowTcpForwarding/a PermitOpen 192.168.1.*:22' /etc/ssh/sshd_config"
 ```
 
 **sed 參數說明：**
@@ -277,7 +277,7 @@ ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
 sshd -t
 
 # 或從遠端執行
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 "sshd -t"
+ssh -i "bastion_key.txt" root@192.168.1.15 "sshd -t"
 ```
 
 **輸出說明：**
@@ -301,7 +301,7 @@ ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 "sshd -t"
 #### 4.3 帶輸出的驗證
 
 ```bash
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "sshd -t && echo '✅ 配置語法正確' || echo '❌ 配置有錯誤'"
 
 # 輸出
@@ -315,25 +315,25 @@ ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
 #### 5.1 查看完整配置
 
 ```bash
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "cat /etc/ssh/sshd_config"
 ```
 
 #### 5.2 查看 PermitOpen 相關配置
 
 ```bash
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "grep -A 5 PermitOpen /etc/ssh/sshd_config"
 
 # 輸出範例
-PermitOpen 192.168.100.*:22
-# PermitOpen 192.168.100.*:23
+PermitOpen 192.168.1.*:22
+# PermitOpen 192.168.1.*:23
 ```
 
 #### 5.3 查看配置文件末尾
 
 ```bash
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "tail -20 /etc/ssh/sshd_config"
 ```
 
@@ -347,15 +347,15 @@ ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
 
 ```bash
 # 方法 1：使用 init.d 腳本
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "/etc/init.d/sshd restart"
 
 # 方法 2：使用 systemctl（如果支援）
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "systemctl restart sshd"
 
 # 方法 3：使用 service 命令
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "service sshd restart"
 ```
 
@@ -370,11 +370,11 @@ ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
 
 ```bash
 # 檢查 SSH 服務是否運行
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "/etc/init.d/sshd status"
 
 # 或
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "ps aux | grep sshd"
 ```
 
@@ -382,7 +382,7 @@ ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
 
 ```bash
 # 重啟後立即測試連接
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 "echo 'SSH 服務正常'"
+ssh -i "bastion_key.txt" root@192.168.1.15 "echo 'SSH 服務正常'"
 
 # 輸出
 SSH 服務正常
@@ -408,25 +408,24 @@ SSH 服務正常
 
 ```bash
 # 從 Ansible 主機執行
-ssh -i "temp_rsa_backup(.56).txt" geek@192.168.56.102 \
-  "cd /home/geek/ansible_network-lab && ansible ISP1 -m ping"
+ansible hq_routers -m ping
 ```
 
 **預期輸出：**
 ```yaml
 PLAY RECAP *********************************************************************
-ISP1                       : ok=1    changed=0    unreachable=0    failed=0
+R1                         : ok=1    changed=0    unreachable=0    failed=0
 ```
 
-**結論：** ✅ 到 192.168.100.50:22 的轉發成功
+**結論：** ✅ 到 192.168.1.11:22 的轉發成功
 
 ---
 
 #### 使用 ProxyCommand 測試
 
 ```bash
-ssh -i "temp_rsa_backup(.56).txt" geek@192.168.56.102 \
-  "ssh -o ProxyCommand='ssh -W %h:%p -i /home/geek/.ssh/bastion_key -o PubkeyAcceptedAlgorithms=+ssh-rsa -o StrictHostKeyChecking=no root@192.168.213.136' -o StrictHostKeyChecking=no cisco123@192.168.100.50 'show version' | head -5"
+ssh -o ProxyCommand='ssh -W %h:%p -i bastion_key.txt root@192.168.1.15' \
+  -o StrictHostKeyChecking=no user@192.168.1.11 'show version' | head -5
 ```
 
 **預期輸出：**
@@ -443,8 +442,8 @@ Cisco IOS Software, Linux Software (I86BI_LINUX-ADVENTERPRISEK9-M)...
 #### 測試外部 IP
 
 ```bash
-ssh -i "temp_rsa_backup(.56).txt" geek@192.168.56.102 \
-  "timeout 10 ssh -o ProxyCommand='ssh -W %h:%p -i /home/geek/.ssh/bastion_key -o PubkeyAcceptedAlgorithms=+ssh-rsa -o StrictHostKeyChecking=no root@192.168.213.136' -o StrictHostKeyChecking=no -o ConnectTimeout=5 user@8.8.8.8 2>&1"
+timeout 10 ssh -o ProxyCommand='ssh -W %h:%p -i bastion_key.txt root@192.168.1.15' \
+  -o StrictHostKeyChecking=no -o ConnectTimeout=5 user@8.8.8.8 2>&1
 ```
 
 **預期輸出：**
@@ -465,8 +464,8 @@ Connection closed by UNKNOWN port 65535
 #### 測試 HTTP 端口
 
 ```bash
-ssh -i "temp_rsa_backup(.56).txt" geek@192.168.56.102 \
-  "timeout 10 ssh -o ProxyCommand='ssh -W 192.168.100.50:80 -i /home/geek/.ssh/bastion_key -o PubkeyAcceptedAlgorithms=+ssh-rsa -o StrictHostKeyChecking=no root@192.168.213.136' -o StrictHostKeyChecking=no -o ConnectTimeout=5 user@192.168.100.50 2>&1"
+timeout 10 ssh -o ProxyCommand='ssh -W 192.168.1.11:80 -i bastion_key.txt root@192.168.1.15' \
+  -o StrictHostKeyChecking=no -o ConnectTimeout=5 user@192.168.1.11 2>&1
 ```
 
 **預期輸出：**
@@ -485,22 +484,22 @@ Connection closed by UNKNOWN port 65535
 #### 查看轉發日誌
 
 ```bash
-ssh -i "temp_rsa_backup(.136).txt" root@192.168.213.136 \
+ssh -i "bastion_key.txt" root@192.168.1.15 \
   "tail -20 /var/log/messages | grep -E 'stdio fwd|Permitted open|refused'"
 ```
 
 **成功的轉發日誌：**
 ```
-Jan  5 13:10:25 uac sshd[12345]: Accepted publickey for root from 192.168.56.102
-Jan  5 13:10:25 uac sshd[12345]: request stdio fwd to 192.168.100.50:22
-Jan  5 13:10:25 uac sshd[12345]: Permitted open to 192.168.100.50:22
+Jan  5 13:10:25 bastion sshd[12345]: Accepted publickey for root from 10.10.99.1
+Jan  5 13:10:25 bastion sshd[12345]: request stdio fwd to 192.168.1.11:22
+Jan  5 13:10:25 bastion sshd[12345]: Permitted open to 192.168.1.11:22
 ```
 
 **被拒絕的轉發日誌：**
 ```
-Jan  5 13:11:30 uac sshd[12346]: Accepted publickey for root from 192.168.56.102
-Jan  5 13:11:30 uac sshd[12346]: request stdio fwd to 8.8.8.8:22
-Jan  5 13:11:30 uac sshd[12346]: refused streamlocal port forward: originator 192.168.56.102 port 0, target 8.8.8.8 port 22
+Jan  5 13:11:30 bastion sshd[12346]: Accepted publickey for root from 10.10.99.1
+Jan  5 13:11:30 bastion sshd[12346]: request stdio fwd to 8.8.8.8:22
+Jan  5 13:11:30 bastion sshd[12346]: refused streamlocal port forward: originator 10.10.99.1 port 0, target 8.8.8.8 port 22
 ```
 
 ---
@@ -575,16 +574,16 @@ tail -50 /var/log/messages | grep "refused"
 
 ```ini
 # ❌ 錯誤：缺少端口
-PermitOpen 192.168.100.*
+PermitOpen 192.168.1.*
 
 # ✅ 正確
-PermitOpen 192.168.100.*:22
+PermitOpen 192.168.1.*:22
 
 # ❌ 錯誤：使用了錯誤的通配符
-PermitOpen 192.168.100.%:22
+PermitOpen 192.168.1.%:22
 
 # ✅ 正確
-PermitOpen 192.168.100.*:22
+PermitOpen 192.168.1.*:22
 ```
 
 ---
@@ -631,7 +630,7 @@ sed -i '/^PermitOpen none/d' /etc/ssh/sshd_config
 
 **症狀：**
 ```
-fatal: [ISP1]: FAILED! =>
+fatal: [R1]: FAILED! =>
   msg: 'ssh connection failed: Socket error: Connection reset by peer'
 ```
 
@@ -639,25 +638,25 @@ fatal: [ISP1]: FAILED! =>
 
 ```bash
 # 1. 測試從 Ansible 主機到跳板機
-ssh -i /home/geek/.ssh/bastion_key root@192.168.213.136 'hostname'
+ssh -i bastion_key.txt root@192.168.1.15 'hostname'
 
 # 2. 測試 ProxyCommand 手動連接
-ssh -o ProxyCommand='ssh -W %h:%p -i /home/geek/.ssh/bastion_key root@192.168.213.136' cisco123@192.168.100.50
+ssh -o ProxyCommand='ssh -W %h:%p -i bastion_key.txt root@192.168.1.15' user@192.168.1.11
 
 # 3. 查看 Ansible 詳細錯誤
-ansible ISP1 -m ping -vvv
+ansible hq_routers -m ping -vvv
 ```
 
 **可能的配置問題：**
 
 ```yaml
 # 檢查 inventory 配置
-cat /home/geek/ansible_network-lab/inventory/hosts.yml
+cat /home/user/ansible_network-lab/inventory/hosts.yml
 
 # 確認 ansible_ssh_common_args 配置正確
 cisco_devices:
   vars:
-    ansible_ssh_common_args: "-o ProxyCommand=\"ssh -W %h:%p -i /home/geek/.ssh/bastion_key -o PubkeyAcceptedAlgorithms=+ssh-rsa -o StrictHostKeyChecking=no root@192.168.213.136\" -o StrictHostKeyChecking=no"
+    ansible_ssh_common_args: "-o ProxyCommand=\"ssh -W %h:%p -i bastion_key.txt -o StrictHostKeyChecking=no root@192.168.1.15\" -o StrictHostKeyChecking=no"
 ```
 
 ---
@@ -670,10 +669,10 @@ cisco_devices:
 
 ```bash
 # 1. 編輯配置
-ssh root@192.168.213.136 "vi /etc/ssh/sshd_config"
+ssh -i "bastion_key.txt" root@192.168.1.15 "vi /etc/ssh/sshd_config"
 
 # 2. 添加新的 PermitOpen 行
-PermitOpen 192.168.200.*:22
+PermitOpen 192.168.2.*:22
 
 # 3. 驗證語法
 sshd -t
@@ -691,7 +690,7 @@ cat > add_permitopen.sh << 'EOF'
 TARGET=$1
 if [ -z "$TARGET" ]; then
     echo "用法: $0 <host:port>"
-    echo "範例: $0 192.168.200.*:22"
+    echo "範例: $0 192.168.2.*:22"
     exit 1
 fi
 
@@ -715,7 +714,7 @@ EOF
 chmod +x add_permitopen.sh
 
 # 使用腳本
-./add_permitopen.sh "192.168.200.*:22"
+./add_permitopen.sh "192.168.2.*:22"
 ```
 
 ---
@@ -727,7 +726,7 @@ chmod +x add_permitopen.sh
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%Y%m%d_%H%M%S)
 
 # 2. 移除特定的 PermitOpen 行
-sed -i '/PermitOpen 192.168.200/d' /etc/ssh/sshd_config
+sed -i '/PermitOpen 192.168.2/d' /etc/ssh/sshd_config
 
 # 3. 驗證
 sshd -t
@@ -768,9 +767,9 @@ grep "Permitted open" /var/log/messages | \
     awk '{print $(NF-2), $(NF)}' | sort | uniq -c | sort -rn
 
 # 輸出範例
-   45 192.168.100.50 22
-   23 192.168.100.51 22
-   12 192.168.100.52 22
+   45 192.168.1.11 22
+   23 192.168.1.12 22
+   12 192.168.1.13 22
 
 # 統計被拒絕的轉發
 grep "refused" /var/log/messages | \
@@ -778,7 +777,7 @@ grep "refused" /var/log/messages | \
 
 # 輸出範例
     3 8.8.8.8 22
-    2 192.168.100.50 80
+    2 192.168.1.11 80
     1 10.0.0.1 3306
 ```
 
@@ -918,9 +917,9 @@ ssh -W target:22 user@bastion
 AllowTcpForwarding yes
 
 # 限制轉發目標
-PermitOpen 192.168.100.*:22    # SSH
-PermitOpen 192.168.100.*:23    # Telnet
-PermitOpen 192.168.100.*:443   # HTTPS
+PermitOpen 192.168.1.*:22     # SSH
+PermitOpen 192.168.1.*:23     # Telnet
+PermitOpen 192.168.1.*:443    # HTTPS
 
 # 其他安全設置
 GatewayPorts no
@@ -953,8 +952,8 @@ UsePAM yes
 
 # === 轉發控制 ===
 AllowTcpForwarding yes
-PermitOpen 192.168.100.*:22
-PermitOpen 192.168.100.*:23
+PermitOpen 192.168.1.*:22
+PermitOpen 192.168.1.*:23
 X11Forwarding no
 AllowAgentForwarding no
 PermitTunnel no
@@ -996,10 +995,10 @@ AllowUsers ansible_user admin_user
 
 set -e  # 遇到錯誤立即退出
 
-BASTION_HOST="192.168.213.136"
+BASTION_HOST="192.168.1.15"
 BASTION_USER="root"
-SSH_KEY="temp_rsa_backup(.136).txt"
-TARGET_NETWORK="192.168.100.*"
+SSH_KEY="bastion_key.txt"
+TARGET_NETWORK="192.168.1.*"
 ALLOWED_PORTS="22 23"
 
 echo "=== PermitOpen 配置腳本 ==="
