@@ -1,0 +1,11 @@
+# SSH 公鑰檔案示例
+# 使用方法：
+# 1. 將你的 SSH 公鑰複製到這裡
+# 2. 重新命名為 authorized_keys（或在 docker-compose 中掛載）
+# 3. 構建 Docker 鏡像
+
+# 示例公鑰（這是一個虛擬的示例，請替換為實際的公鑰）
+# ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQD... your-public-key-here... user@host
+
+# 對於 Ansible 主機，公鑰內容通常來自：
+# ~/.ssh/id_rsa.pub 或 ~/.ssh/bastion_key.pub

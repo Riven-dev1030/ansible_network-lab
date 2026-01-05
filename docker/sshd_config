@@ -1,0 +1,110 @@
+# This is the sshd server system-wide configuration file.
+# See sshd_config(5) for more information.
+
+# ============================================
+# 基本設定
+# ============================================
+Port 22
+#AddressFamily any
+#ListenAddress 0.0.0.0
+#ListenAddress ::
+
+# ============================================
+# 主機密鑰配置
+# ============================================
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# 生命週期
+#RekeyLimit default none
+
+# ============================================
+# 密碼認證和公鑰認證
+# ============================================
+# 禁用密碼認證，只允許密鑰認證
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+UsePAM yes
+
+# ============================================
+# 根使用者相關
+# ============================================
+PermitRootLogin prohibit-password
+
+# ============================================
+# TCP 轉發配置 (ProxyCommand 支援)
+# ============================================
+# 啟用 TCP 轉發（支援 ProxyCommand -W）
+AllowTcpForwarding yes
+
+# 限制 TCP 轉發目標（僅允許到 192.168.1.x:22）
+# 這確保跳板機只能轉發到指定的網路設備
+PermitOpen 192.168.1.*:22
+
+# 如果需要支援 Telnet，取消註解以下行
+# PermitOpen 192.168.1.*:23
+
+# 其他轉發限制
+GatewayPorts no
+AllowAgentForwarding no
+PermitTunnel no
+X11Forwarding no
+
+# ============================================
+# 認證和日誌
+# ============================================
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+# 將所有認證資訊（包括成功和失敗）記錄到日誌
+AuthorizedKeysFile .ssh/authorized_keys
+
+# ============================================
+# 連接和逾時設定
+# ============================================
+LoginGraceTime 60
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# ============================================
+# 安全限制
+# ============================================
+MaxAuthTries 3
+MaxSessions 5
+MaxStartups 10:30:100
+
+# 僅允許特定使用者（在容器中只有 root）
+AllowUsers root
+
+# ============================================
+# 其他安全選項
+# ============================================
+Protocol 2
+HostbasedAuthentication no
+IgnoreRhosts yes
+StrictModes yes
+IgnoreUserKnownHosts no
+UseDNS no
+Compression no
+ClientAliveCountMax 2
+TCPKeepAlive yes
+UseLogin no
+UsePrivilegeSeparation sandbox
+PermitUserEnvironment no
+Ciphers aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+MACs hmac-sha2-256,hmac-sha2-512,umac-128@openssh.com,umac-256@openssh.com
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256
+
+# ============================================
+# Ansible ProxyCommand 支援備註
+# ============================================
+# 此配置支援使用 ProxyCommand 進行 SSH 通訊埠轉發
+# 例如：ssh -o ProxyCommand='ssh -W %h:%p root@bastion' user@target
+#
+# 為了使用此配置：
+# 1. 確保 /root/.ssh/authorized_keys 包含 Ansible 主機的公鑰
+# 2. 在 Ansible inventory 中配置 ProxyCommand
+# 3. PermitOpen 限制確保只能轉發到 192.168.1.0/24 網段

@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  bastion:
+    build:
+      context: .
+      dockerfile: Dockerfile.bastion
+    container_name: ansible-bastion
+    ports:
+      # 將容器的 22 通訊埠映射到主機的 2222（避免與本地 SSH 衝突）
+      - "2222:22"
+    environment:
+      # SSH 伺服器環境變數（可選）
+      TZ: UTC
+    volumes:
+      # 掛載本地 SSH 配置（用於開發除錯）
+      # - ./sshd_config:/etc/ssh/sshd_config:ro
+
+      # 掛載 authorized_keys（推薦用於生產）
+      # - ./authorized_keys:/root/.ssh/authorized_keys:ro
+
+      # 掛載日誌目錄（可選）
+      - bastion_logs:/var/log
+    healthcheck:
+      test: ["CMD", "sshd", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - ansible_network
+    restart: unless-stopped
+    # 可選：執行權限
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+
+  # 可選：Ansible 控制節點（用於測試）
+  ansible-controller:
+    image: alpine:3.18
+    container_name: ansible-controller
+    depends_on:
+      bastion:
+        condition: service_healthy
+    volumes:
+      # 掛載 Ansible 專案
+      - ../:/ansible:ro
+      # 掛載 SSH 密鑰
+      # - ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro
+    networks:
+      - ansible_network
+    command: sh -c "apk add --no-cache ansible openssh-client && ash"
+    stdin_open: true
+    tty: true
+
+networks:
+  ansible_network:
+    driver: bridge
+
+volumes:
+  bastion_logs:
+    driver: local

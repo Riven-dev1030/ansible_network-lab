@@ -1,0 +1,53 @@
+# 跳板機 SSH 伺服器 Docker 鏡像
+# 基礎鏡像：Alpine Linux（輕量級）
+FROM alpine:3.18
+
+# 設定維護者資訊
+LABEL maintainer="Ansible Network Lab"
+LABEL description="Bastion SSH Server for Ansible ProxyCommand with PermitOpen restrictions"
+
+# 更新套件管理器並安裝 OpenSSH
+RUN apk update && \
+    apk add --no-cache \
+        openssh=9.3_p2-r1 \
+        openssh-client=9.3_p2-r1 \
+        bash \
+        doas \
+    && rm -rf /var/cache/apk/*
+
+# 建立 SSH 目錄
+RUN mkdir -p /run/sshd && \
+    chmod 755 /run/sshd
+
+# 建立 root SSH 配置目錄
+RUN mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh
+
+# 複製自訂 sshd 配置
+COPY sshd_config /etc/ssh/sshd_config
+RUN chmod 600 /etc/ssh/sshd_config
+
+# 複製 authorized_keys（生產環境應該透過 volume 掛載）
+COPY authorized_keys /root/.ssh/authorized_keys
+RUN chmod 600 /root/.ssh/authorized_keys
+
+# 複製啟動腳本
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# 產生主機密鑰（如果不存在）
+RUN ssh-keygen -A
+
+# 設定健康檢查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD sshd -t && echo "SSH service is healthy"
+
+# 暴露 SSH 通訊埠
+EXPOSE 22
+
+# 啟動腳本入口
+ENTRYPOINT ["/entrypoint.sh"]
+
+# 使用者資訊
+# 預設使用者：root
+# 認證方式：SSH 密鑰
