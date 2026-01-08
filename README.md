@@ -50,6 +50,30 @@ Tunnel:
 - **Ansible** 2.10+
 - **網路設備** Cisco IOS (IOL/VIRL/EVE-NG)
 - **RAM**: 約 2.5-3 GB (L3: 256-384MB, L2: 192MB)
+- **SSH 跳板機** (可選但建議) - 用於安全地連接到網路設備
+
+#### SSH 跳板機設置
+
+本專案支援透過 SSH 跳板機（Bastion Host）連接到網路設備，提供額外的安全層。
+
+**快速設置：**
+
+```bash
+# 1. 獲取獨立的 Docker Bastion 專案
+git clone https://github.com/Riven-dev1030/docker-bastion-ssh.git
+cd docker-bastion-ssh
+
+# 2. 配置 SSH 公鑰
+cat ~/.ssh/id_rsa.pub > config/authorized_keys
+
+# 3. 啟動跳板機
+docker-compose up -d
+
+# 4. 測試連接
+ssh -i ~/.ssh/id_rsa -p 2222 root@localhost
+```
+
+**詳細說明請參考：** [docs/BASTION_SETUP.md](docs/BASTION_SETUP.md)
 
 ### 安裝步驟
 
