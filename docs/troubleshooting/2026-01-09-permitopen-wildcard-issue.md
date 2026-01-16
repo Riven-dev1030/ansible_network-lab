@@ -49,7 +49,7 @@ Ansible 無法透過跳板機連接到網路設備 (Cisco ISP1)，表現為 SSH 
 
 **症狀 1：ProxyCommand 連接失敗**
 ```
-$ ssh -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" root@192.168.100.50
+$ ssh -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" cisco123@192.168.100.50
 Received disconnect message: Received packet type 1 (SSH_MSG_IGNORE)
 ```
 
@@ -85,7 +85,7 @@ sshd[12345]: Received request from 192.168.213.112 to connect to host 192.168.10
 
 2. 從跳板機 SSH 至目標設備 (192.168.100.50)
    ```bash
-   ssh root@192.168.100.50
+   ssh cisco123@192.168.100.50
    ```
    **結果**：連接成功
 
@@ -152,7 +152,7 @@ sshd[12345]: Received request from 192.168.213.112 to connect to host 192.168.10
 ssh -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" \
     -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
-    root@192.168.100.50
+    cisco123@192.168.100.50
 ```
 
 **錯誤信息**
@@ -166,7 +166,7 @@ Shared connection to 192.168.213.136 closed.
 **偵錯步驟**
 ```bash
 # 啟用詳細日誌
-ssh -vvv -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" root@192.168.100.50
+ssh -vvv -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" cisco123@192.168.100.50
 
 # 查看跳板機日誌
 ssh root@192.168.213.136 'tail -20 /var/log/messages'
@@ -322,7 +322,7 @@ sudo /etc/init.d/sshd restart
 **驗證結果**
 ```bash
 # 測試轉發連接
-ssh -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" root@192.168.100.50
+ssh -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" cisco123@192.168.100.50
 
 # 應成功連接到目標設備
 ```
@@ -374,7 +374,7 @@ sudo /etc/init.d/sshd restart
 **驗證結果**
 ```bash
 # 測試轉發連接
-ssh -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" root@192.168.100.50
+ssh -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" cisco123@192.168.100.50
 ```
 
 **優點**
@@ -469,7 +469,7 @@ ssh -V
 ```bash
 ssh -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" \
     -o StrictHostKeyChecking=no \
-    root@192.168.100.50 "hostname"
+    cisco123@192.168.100.50 "hostname"
 ```
 
 **預期結果**：
@@ -691,7 +691,7 @@ exec ssh-proxycommand "$@"
 ssh root@192.168.213.136 "echo OK"
 
 # 2. 跳板機 → 目標設備
-ssh root@192.168.213.136 -c "ssh root@192.168.100.50 'echo OK'"
+ssh root@192.168.213.136 -c "ssh cisco123@192.168.100.50 'echo OK'"
 
 # 3. 如果以上都成功但 ProxyCommand 失敗，進入第 2 步
 ```
@@ -713,7 +713,7 @@ ssh root@192.168.213.136 "grep -E '^(AllowTcpForwarding|PermitOpen)' /etc/ssh/ss
 # 使用詳細日誌測試轉發連接
 ssh -vvv \
   -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" \
-  root@192.168.100.50 "echo OK"
+  cisco123@192.168.100.50 "echo OK"
 
 # 查看跳板機日誌
 ssh root@192.168.213.136 "tail -20 /var/log/messages | grep -i 'permitopen\|forwarding'"
@@ -1021,7 +1021,7 @@ ansible_ssh_timeout=30
 **SSH 連接診斷**
 ```bash
 # 詳細日誌連接
-ssh -vvv -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" root@192.168.100.50
+ssh -vvv -o ProxyCommand="ssh -W %h:%p root@192.168.213.136" cisco123@192.168.100.50
 
 # 測試 ProxyCommand 命令本身
 ssh -W 192.168.100.50:22 root@192.168.213.136
